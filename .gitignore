@@ -1,0 +1,17 @@
+# Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.db
+appsettings.Development.json
+
+# Files built by Visual Studio
+*.[Pp]ublish.xml
+*.publishproj
+
+# NuGet
+[Nn]uget/
+*.nupkg
+*.snupkg
+
