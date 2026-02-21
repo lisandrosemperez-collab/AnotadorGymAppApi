@@ -1,6 +1,7 @@
-﻿using AnotadorGymAppApi.Context;
-using AnotadorGymAppApi.Services.Implementations;
-using AnotadorGymAppApi.Services.Interfaces;
+﻿using AnotadorGymAppApi.Features.Common.Validation;
+using AnotadorGymAppApi.Features.Ejercicios;
+using AnotadorGymAppApi.Features.Rutinas;
+using AnotadorGymAppApi.Infrastructure.Context;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -45,7 +46,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));        
 });
 builder.Services.AddScoped<IEjercicioService, EjercicioService>();
-builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddScoped<IEjercicioImport, EjercicioImportService>();
+builder.Services.AddScoped<IRutinaImport, RutinaImportService>();
+builder.Services.AddScoped<IRutinaService, RutinaService>();
+builder.Services.AddScoped<IJsonFileValidator, JsonFileValidator>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -109,6 +113,8 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+builder.Services.AddOutputCache();
+
 var app = builder.Build();
 
 app.UseSwagger();
@@ -121,6 +127,7 @@ app.UseSwaggerUI(options =>
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseOutputCache();
 
 app.MapControllers();
 
