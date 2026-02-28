@@ -32,9 +32,9 @@ namespace AnotadorGymAppApi.Features.Rutinas.DTOs
 
     public class RutinaSerieDto
     {
-        public int Repeticiones { get; set; }
-        public int Porcentaje1RM { get; set; }
-        public string Descanso { get; set; }    
+        public int? Repeticiones { get; set; }
+        public int? Porcentaje1RM { get; set; }
+        public string? Descanso { get; set; }    
         public TipoSerie Tipo { get; set; }
         public int NumeroSerie { get; set; }
     }

@@ -327,5 +327,11 @@ namespace AnotadorGymAppApi.Features.Rutinas
                 });
             }
         }
+
+        public async Task<ActionResult<IEnumerable<RutinaDto>>> GetRutinas()
+        {
+            var rutinas = await _rutinaService.GetAllRutinas();
+            return Ok(rutinas);
+        }
     }
 }
