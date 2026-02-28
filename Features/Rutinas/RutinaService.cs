@@ -4,6 +4,7 @@ using AnotadorGymAppApi.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
 using AnotadorGymAppApi.Features.Rutinas.DTOs;
 using AnotadorGymAppApi.Features.Ejercicios.DTOs;
+using AnotadorGymAppApi.Features.Rutinas.Results;
 
 namespace AnotadorGymAppApi.Features.Rutinas
 {
@@ -15,13 +16,14 @@ namespace AnotadorGymAppApi.Features.Rutinas
             _DbContext = DbContext;
         }
 
-        public async Task<(List<RutinaDto> items, int totalCount)> GetAllRutinas()
+        public async Task<RutinaListResult> GetAllRutinas()
         {
             var rutinasQuery = _DbContext.Rutinas.AsNoTracking().OrderBy(r => r.Nombre);
             var totalCount = await rutinasQuery.CountAsync();
             
             var Rutinas = await ProjectToDto(rutinasQuery).ToListAsync();
-            return (Rutinas, totalCount);
+
+            return new RutinaListResult{ Items = Rutinas, TotalCount = totalCount};
         }
         public async Task<RutinaDto> GetRutina(string nombre)
         {
