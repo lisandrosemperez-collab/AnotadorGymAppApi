@@ -1,4 +1,5 @@
-﻿using AnotadorGymAppApi.Features.Common.Results;
+﻿using AnotadorGymAppApi.Domain.Entities;
+using AnotadorGymAppApi.Features.Common.Results;
 using AnotadorGymAppApi.Features.Rutinas.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -328,10 +329,59 @@ namespace AnotadorGymAppApi.Features.Rutinas
             }
         }
 
-        public async Task<ActionResult<IEnumerable<RutinaDto>>> GetRutinas()
+        /// <summary>
+        /// Obtiene el listado completo de rutinas disponibles.
+        /// </summary>
+        /// <remarks>
+        /// Devuelve todas las rutinas ordenadas alfabéticamente por nombre,
+        /// incluyendo su estructura jerárquica completa (semanas, días,
+        /// ejercicios y series) con orden determinístico.
+        /// </remarks>
+        /// <returns>
+        /// Una colección de <see cref="RutinaDto"/> junto con el total de registros.
+        /// </returns>
+        /// <response code="200">Listado obtenido correctamente.</response>
+        /// <response code="500">Error interno del servidor.</response>        
+        [ProducesResponseType(typeof((List<RutinaDto> items, int totalCount)), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<RutinaDto>>> GetAllRutinas()
         {
             var rutinas = await _rutinaService.GetAllRutinas();
             return Ok(rutinas);
+        }
+
+        /// <summary>
+        /// Obtiene una rutina específica por su nombre.
+        /// </summary>
+        /// <param name="nombre">
+        /// Nombre exacto de la rutina a buscar.
+        /// </param>
+        /// <remarks>
+        /// Devuelve la rutina con su estructura completa
+        /// (semanas, días, ejercicios y series) en orden determinístico.
+        /// </remarks>
+        /// <returns>
+        /// Un objeto <see cref="RutinaDto"/> si existe.
+        /// </returns>
+        /// <response code="200">Rutina encontrada.</response>
+        /// <response code="404">No se encontró una rutina con el nombre especificado.</response>
+        /// <response code="500">Error interno del servidor.</response>
+        [ProducesResponseType(typeof(RutinaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<RutinaDto>>> GetRutina([FromBody] string nombre)
+        {
+            if (string.IsNullOrWhiteSpace(nombre))
+                return BadRequest();
+
+            var rutina = await _rutinaService.GetRutina(nombre);
+
+            if (rutina is null)
+                return NotFound();
+
+            return Ok(rutina);
         }
     }
 }
