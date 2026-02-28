@@ -370,8 +370,8 @@ namespace AnotadorGymAppApi.Features.Rutinas
         [ProducesResponseType(typeof(RutinaDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<RutinaDto>>> GetRutina([FromBody] string nombre)
+        [HttpGet("{nombre}")]
+        public async Task<ActionResult<IEnumerable<RutinaDto>>> GetRutina(string nombre)
         {
             if (string.IsNullOrWhiteSpace(nombre))
                 return BadRequest();
