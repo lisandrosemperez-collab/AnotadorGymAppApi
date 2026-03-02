@@ -11,13 +11,18 @@ namespace AnotadorGymAppApi.Features.Rutinas
     public class RutinaService : IRutinaService
     {
         private readonly AppDbContext _DbContext;
-        public RutinaService(AppDbContext DbContext)
+        private readonly ILogger<RutinaService> _logger;
+        public RutinaService(AppDbContext DbContext, ILogger<RutinaService> logger)
         {
             _DbContext = DbContext;
+            _logger = logger;
         }
 
         public async Task<RutinaListResult> GetAllRutinas()
         {
+            var count = await _DbContext.Rutinas.CountAsync();
+            _logger.LogInformation("Rutinas en DB: {Count}", count);
+
             var rutinasQuery = _DbContext.Rutinas.AsNoTracking().OrderBy(r => r.Nombre);
             var totalCount = await rutinasQuery.CountAsync();
             

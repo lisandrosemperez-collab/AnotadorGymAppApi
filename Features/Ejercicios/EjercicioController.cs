@@ -297,23 +297,14 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         /// Obtiene todos los ejercicios registrados.
         /// </summary>
         /// <remarks>
-        /// **⚠️ Requiere autenticación mediante token JWT.**
-        /// 
-        /// Para obtener un token de acceso, contacta al administrador en:
-        /// **[lisandrosemperez@gmail.com](mailto:lisandrosemperez@gmail.com)**
-        /// 
-        /// Incluye el token en el encabezado `Authorization: Bearer {token}`.
-        /// 
-        /// Este endpoint devuelve la colección completa de ejercicios.
-        /// Requiere rol <c>Admin</c>.
+        /// Este endpoint devuelve la colección completa de ejercicios.        
         /// </remarks>
         /// <returns>Lista completa de ejercicios.</returns>
         /// <response code="200">Ejercicios obtenidos correctamente.</response>
         /// <response code="401">Usuario no autenticado.</response>
         /// <response code="403">Usuario autenticado sin permisos suficientes.</response>
         /// <response code="500">Error interno del servidor.</response>
-        [HttpGet("all")]
-        [Authorize(Roles = "Admin")]
+        [HttpGet("all")]        
         public async Task<ActionResult<IEnumerable<EjercicioDTO>>> GetEjercicios()
         {
             var ejercicios = await _ejercicioService.GetAllEjercicios();
