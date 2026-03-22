@@ -1,28 +1,43 @@
 # 🏋️ Anotador Gym API
-API RESTful para la gestión de ejercicios y entrenamientos. Permite importar, validar y consultar ejercicios, con autenticación mediante JWT y despliegue automatizado en Railway.
+[![.NET](https://img.shields.io/badge/.NET-9.0-purple)](https://dotnet.microsoft.com/)
+[![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-Web%20API-blue)](https://learn.microsoft.com/aspnet/core)
+![EF Core](https://img.shields.io/badge/EF%20Core-9.0-orange)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)
+![Docker](https://img.shields.io/badge/Docker-%E2%9C%94-2496ED?logo=docker)
+![Render](https://img.shields.io/badge/Render-deployed-46E3B7?logo=render)
+[![Swagger](https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?logo=swagger)](https://anotadorgymappapi.onrender.com)
+
+API RESTful para la gestión de ejercicios y entrenamientos, diseñada como backend de una aplicación móvil con arquitectura offline-first.. Permite importar, validar y consultar ejercicios, con autenticación JWT y despliegue en la nube mediante Render.
 
 ## 🚀 Características
 - **.NET 9.0 con Web API** (controladores y minimal APIs).
+- **Arquitectura desacoplada** orientada a consumo por clientes móviles (MAUI).
 - **Autenticación JWT** solo para endpoints de importación y validación.
 - **Documentación interactiva** con Swagger/OpenAPI.
 - **Importación masiva** de ejercicios desde archivos JSON.
 - **Validación de formato** sin persistencia.
 - **Base de datos PostgreSQL** en [Neon](https://neon.tech) con más de 900 ejercicios precargados.
 - **Dockerizado** – listo para desarrollo y producción.
-- **Despliegue continuo desde GitHub a Railway.**
+- **Despliegue continuo desde GitHub a Render.**
 
 ## 📦 Tecnologías
 - [.NET 9](https://dotnet.microsoft.com/)
 - [Entity Framework Core](https://docs.microsoft.com/ef/core/) (con PostgreSQL)
 - [Swashbuckle.AspNetCore](https://github.com/domaindrivendev/Swashbuckle.AspNetCore)
 - [Docker](https://www.docker.com/)
-- [Railway](https://railway.app/)
+- [Render](https://render.com/)
 - [Neon PostgreSQL](https://neon.tech)
 
-## 🌐 API en producción
-La API ya se encuentra desplegada y funcionando en Railway. Puedes probarla directamente sin necesidad de clonar el repositorio:
+## ⚡ Rendimiento
 
-**📚 Swagger UI:** https://anotadorgymappapi-production.up.railway.app/index.html
+- Endpoint principal (`GET /api/ejercicios`) optimizado para servir más de 900 ejercicios.
+- Tiempo de respuesta promedio bajo incluso con relaciones complejas.
+- Procesamiento interno optimizado con Entity Framework Core.
+
+## 🌐 API en producción
+La API ya se encuentra desplegada y funcionando en Render. Puedes probarla directamente sin necesidad de clonar el repositorio:
+
+**📚 Swagger UI:** https://anotadorgymappapi.onrender.com/
 
 **Desde Swagger** puedes explorar todos los endpoints, ver los modelos de datos y probar las peticiones en tiempo real.
 
@@ -62,7 +77,7 @@ La API requiere las siguientes variables para funcionar correctamente:
 **Importante:**  
 - No subas estos valores al repositorio.  
 - En **desarrollo**, puedes definirlas en `appsettings.json` (este archivo debe estar en `.gitignore`).
-- En **producción** (Railway), configúralas desde el dashboard del proyecto (sección Variables).
+- En **producción** (Render), configúralas desde el dashboard del servicio
 
 #### 🔹 Ejemplo de `appsettings.json`
 
@@ -86,12 +101,17 @@ docker run -d -p 5000:8080 -e PORT=8080 --name anotador-api anotador-api
 ```
 Accede a http://localhost:5000/swagger
 
-## 🌍 Despliegue en Railway
-**Este repositorio está configurado para desplegarse automáticamente en Railway:**
+## 🌍 Despliegue en Render
 
-- **Haz fork o conecta** tu repositorio a Railway.
-- **Railway detecta el Dockerfile** y establece la variable PORT=8080 automáticamente.
-- **Obtendrás una URL pública** como [https://anotador-api.up.railway.app](https://anotadorgymappapi-production.up.railway.app/).
+Este repositorio está configurado para desplegarse automáticamente en Render mediante Docker:
+
+- Conecta tu repositorio de GitHub a Render.
+- Render detecta automáticamente el `Dockerfile`.
+- Configura las variables de entorno desde el dashboard.
+- El servicio se expone mediante una URL pública.
+
+Swagger disponible en:
+https://anotadorgymappapi.onrender.com
 
 ## 🔐 Autenticación
 Los siguientes endpoints requieren un token JWT en el encabezado Authorization:
