@@ -3,6 +3,7 @@
     public class EjercicioDTO
     {       
         public string Nombre { get; set; } = string.Empty;
+        public int EjercicioId { get; set; }
         public string Descripcion { get; set; } = string.Empty;
         public MusculoDTO? MusculoPrimario { get; set; } = new MusculoDTO();
         public List<MusculoDTO>? MusculosSecundarios { get; set; } = new List<MusculoDTO>();

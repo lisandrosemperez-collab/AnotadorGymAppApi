@@ -1,15 +1,16 @@
-﻿using AnotadorGymAppApi.Infrastructure.Context;
+﻿using AnotadorGymAppApi.Features.Common.Pagination;
+using AnotadorGymAppApi.Features.Common.Results;
+using AnotadorGymAppApi.Features.Ejercicios.DTOs;
+using AnotadorGymAppApi.Infrastructure.Context;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
 using System.Text.Json;
-using AnotadorGymAppApi.Features.Common.Pagination;
-using AnotadorGymAppApi.Features.Common.Results;
-using AnotadorGymAppApi.Features.Ejercicios.DTOs;
 
 namespace AnotadorGymAppApi.Features.Ejercicios
 {
@@ -22,8 +23,8 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         private readonly IEjercicioService _ejercicioService;
         public EjercicioController(ILogger<EjercicioController> logger, IEjercicioService ejercicioService, IEjercicioImport ejercicioImport)
         {
-            _ejercicioService = ejercicioService; 
-            _ejercicioImportService = ejercicioImport;         
+            _ejercicioService = ejercicioService;
+            _ejercicioImportService = ejercicioImport;
             _logger = logger;
         }
 
@@ -103,7 +104,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         /// <response code="500">Error interno del servidor.</response>   
         [HttpPost("importar")]
         [Authorize(Roles = "Admin")]
-        [Consumes("multipart/form-data")]        
+        [Consumes("multipart/form-data")]
         [ProducesResponseType(typeof(ImportResultDTO), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -113,8 +114,8 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<ImportResultDTO>> ImportarEjerciciosDesdeArchivo([Required] IFormFile archivo)
         {
-            _logger.LogInformation("Solicitud de importación recibida. Archivo: {FileName}, Tamaño: {Size}", archivo?.FileName, archivo?.Length);           
-                                                                                   
+            _logger.LogInformation("Solicitud de importación recibida. Archivo: {FileName}, Tamaño: {Size}", archivo?.FileName, archivo?.Length);
+
             var importResult = await _ejercicioImportService.ImportarEjerciciosDesdeArchivoAsync(archivo);
             if (importResult.FalloCritico == true) return BadRequest(new ProblemDetails
             {
@@ -122,9 +123,9 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 Detail = importResult.Errores.FirstOrDefault()?.Mensaje ?? "Ocurrió un error crítico durante la importación",
                 Status = StatusCodes.Status400BadRequest
             });
-                
+
             return Ok(importResult);
-                       
+
         }
 
         /// <summary>
@@ -304,7 +305,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         /// <response code="401">Usuario no autenticado.</response>
         /// <response code="403">Usuario autenticado sin permisos suficientes.</response>
         /// <response code="500">Error interno del servidor.</response>
-        [HttpGet("all")]        
+        [HttpGet("all")]
         public async Task<ActionResult<IEnumerable<EjercicioDTO>>> GetEjercicios()
         {
             var ejercicios = await _ejercicioService.GetAllEjercicios();
@@ -340,6 +341,36 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             });
         }        
 
+        // DELETE protegido
+        [Authorize]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Eliminar(int id)
+        {
+            var ok = await _ejercicioService.EliminarEjercicioAsync(id);
 
+            if (!ok) return NotFound();
+
+            return NoContent();
+        }
+
+        // PATCH protegido
+        [Authorize]
+        [HttpPatch("{id}")]
+        public async Task<IActionResult> Actualizar(int id, [FromBody] EjercicioSimpleDTO dto)
+        {
+            var ejercicio = await _ejercicioService.ActualizarEjercicioAsync(id, dto);
+            if (ejercicio == null) return NotFound();
+            return Ok(ejercicio);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetPorId(int id)
+        {
+            var ejercicio = await _ejercicioService.GetPorId(id);                
+            
+            if (ejercicio == null) return NotFound();
+
+            return Ok(ejercicio);
+        }
     }
 }

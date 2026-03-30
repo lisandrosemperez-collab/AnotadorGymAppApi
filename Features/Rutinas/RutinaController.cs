@@ -383,5 +383,24 @@ namespace AnotadorGymAppApi.Features.Rutinas
 
             return Ok(rutina);
         }
+
+        [Authorize]
+        [HttpPatch("{id}")]
+        public async Task<IActionResult> Actualizar(int id, [FromBody] ActualizarRutinaDto dto)
+        {
+            var ok = await _rutinaService.ActualizarRutinaAsync(id, dto);
+
+            if (!ok) return NotFound();
+
+            return NoContent();
+        }
+        [Authorize]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Eliminar(int id)
+        {
+            var ok = await _rutinaService.EliminarRutinaAsync(id);
+            if (!ok) return NotFound();
+            return Ok(ok);
+        }        
     }
 }

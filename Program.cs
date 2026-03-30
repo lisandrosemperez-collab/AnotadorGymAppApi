@@ -115,6 +115,16 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddOutputCache();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
 
 app.UseSwagger();
@@ -130,6 +140,8 @@ app.UseAuthorization();
 app.UseOutputCache();
 
 app.MapControllers();
+
+app.UseCors("AllowFrontend");
 
 app.MapGet("/health", () => Results.Ok(new
 {

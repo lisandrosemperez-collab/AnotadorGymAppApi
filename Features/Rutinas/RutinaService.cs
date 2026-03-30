@@ -11,13 +11,14 @@ namespace AnotadorGymAppApi.Features.Rutinas
     public class RutinaService : IRutinaService
     {
         private readonly AppDbContext _DbContext;
-        private readonly ILogger<RutinaService> _logger;
+        private readonly ILogger<RutinaService> _logger;        
         public RutinaService(AppDbContext DbContext, ILogger<RutinaService> logger)
         {
             _DbContext = DbContext;
-            _logger = logger;
-        }
+            _logger = logger;            
+        }       
 
+        #region Gets
         public async Task<RutinaListResult> GetAllRutinas()
         {
             var count = await _DbContext.Rutinas.CountAsync();
@@ -83,5 +84,42 @@ namespace AnotadorGymAppApi.Features.Rutinas
                     }).ToList()
                 });
         }
+
+        #endregion
+
+        #region Sets        
+        public async Task<bool> EliminarRutinaAsync(int rutinaId)
+        {
+            var rutina = await _DbContext.Rutinas
+        .FirstOrDefaultAsync(r => r.RutinaId == rutinaId);
+
+            if (rutina == null)
+                return false;
+
+            _DbContext.Rutinas.Remove(rutina);
+            await _DbContext.SaveChangesAsync();
+
+            return true;
+        }
+        public async Task<bool> ActualizarRutinaAsync(int rutinaId, ActualizarRutinaDto dto)
+        {
+            var rutina = await _DbContext.Rutinas
+                .FirstOrDefaultAsync(r => r.RutinaId == rutinaId);
+
+            if (rutina == null)
+                return false;
+
+            // Actualizar solo lo permitido
+            rutina.Nombre = dto.Nombre ?? rutina.Nombre;
+            rutina.Descripcion = dto.Descripcion ?? rutina.Descripcion;
+            rutina.Dificultad = dto.Dificultad ?? rutina.Dificultad;
+            rutina.TiempoPorSesion = dto.TiempoPorSesion ?? rutina.TiempoPorSesion;
+
+            await _DbContext.SaveChangesAsync();
+
+            return true;
+        }
+
+        #endregion
     }
 }
