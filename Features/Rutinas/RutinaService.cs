@@ -49,23 +49,28 @@ namespace AnotadorGymAppApi.Features.Rutinas
                     Dificultad = e.Dificultad,
                     FrecuenciaPorGrupo = e.FrecuenciaPorGrupo,
                     ImageSource = e.ImageSource,
+                    RutinaId = e.RutinaId,
                     Semanas = e.Semanas
                     .OrderBy(s => s.NumeroSemana)
                     .Select(s => new RutinaSemanaDto
                     {
+                        RutinaSemanaId = s.RutinaSemanaId,
                         NumeroSemana = s.NumeroSemana,
                         Dias = s.Dias
                         .OrderBy(d => d.NumeroDia)
                         .Select(d => new RutinaDiaDto
                         {
+                            RutinaDiaId = d.RutinaDiaId,
                             NumeroDia = d.NumeroDia,
                             Ejercicios = d.Ejercicios
                             .OrderBy(e => e.NumeroEjercicio)
                             .Select(ej => new RutinaEjercicioDto
                             {
+                                RutinaEjercicioId = ej.RutinaEjercicioId,
                                 NumeroEjercicio = ej.NumeroEjercicio,
                                 Ejercicio = new EjercicioSimpleDTO
                                 {
+                                    EjercicioId = ej.EjercicioId,
                                     Nombre = ej.Ejercicio.Nombre,
                                     Descripcion = ej.Ejercicio.Descripcion
                                 },
@@ -73,6 +78,7 @@ namespace AnotadorGymAppApi.Features.Rutinas
                                 .OrderBy(s => s.NumeroSerie)
                                 .Select(ser => new RutinaSerieDto
                                 {
+                                    RutinaSerieId = ser.RutinaSerieId,
                                     NumeroSerie = ser.NumeroSerie,
                                     Repeticiones = ser.Repeticiones,
                                     Porcentaje1RM = ser.Porcentaje1RM,

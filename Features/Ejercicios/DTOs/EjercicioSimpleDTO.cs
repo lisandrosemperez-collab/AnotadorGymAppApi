@@ -3,6 +3,7 @@
     public class EjercicioSimpleDTO
     {                        
         public string Nombre { get; set; } = string.Empty;
+        public int EjercicioId { get; set; }
         public string Descripcion { get; set; } = string.Empty;                        
         public EjercicioSimpleDTO() { }
     }

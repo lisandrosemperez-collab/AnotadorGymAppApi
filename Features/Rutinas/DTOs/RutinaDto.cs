@@ -6,6 +6,7 @@ namespace AnotadorGymAppApi.Features.Rutinas.DTOs
     public class RutinaDto
     {
         public string Nombre { get; set; }
+        public int RutinaId { get; set; }
         public string Descripcion { get; set; }
         public string FrecuenciaPorGrupo { get; set; }
         public string Dificultad { get; set; }
@@ -16,22 +17,26 @@ namespace AnotadorGymAppApi.Features.Rutinas.DTOs
     public class RutinaSemanaDto
     {                
         public List<RutinaDiaDto> Dias { get; set; }
+        public int RutinaSemanaId { get; set; }
         public int NumeroSemana { get; set; }
     }
     public class RutinaDiaDto
     {                
         public List<RutinaEjercicioDto> Ejercicios { get; set; }
+        public int RutinaDiaId { get; set; }
         public int NumeroDia { get; set; }
     }
     public class RutinaEjercicioDto
     {        
         public EjercicioSimpleDTO Ejercicio { get; set; }
+        public int RutinaEjercicioId { get; set; }
         public List<RutinaSerieDto> Series { get; set; }
         public int NumeroEjercicio { get; set; }
     }
 
     public class RutinaSerieDto
     {
+        public int RutinaSerieId { get; set; }
         public int? Repeticiones { get; set; }
         public int? Porcentaje1RM { get; set; }
         public string? Descanso { get; set; }    
