@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using AnotadorGymAppApi.Domain.Entities;
+using AnotadorGymAppApi.Domain.Entities.Ejercicio;
+using AnotadorGymAppApi.Domain.Entities.Rutina;
+using AnotadorGymAppApi.Domain.Entities.Usuario;
 
 
 namespace AnotadorGymAppApi.Infrastructure.Context
@@ -10,6 +12,7 @@ namespace AnotadorGymAppApi.Infrastructure.Context
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
+        public DbSet<Usuario> Usuarios { get; set; }
         public DbSet<Ejercicio> Ejercicios { get; set; }
         public DbSet<Rutina> Rutinas { get; set; }
         public DbSet<RutinaSemana> RutinaSemanas { get; set; }
@@ -22,6 +25,19 @@ namespace AnotadorGymAppApi.Infrastructure.Context
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             //base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<Usuario>(entity =>
+            {
+                entity.HasKey(u => u.UsuarioId);
+                entity.HasIndex(u => u.UserName).IsUnique();
+                entity.Property(u => u.UserName).IsRequired().HasMaxLength(50);
+
+                entity.Property(u => u.Email).HasMaxLength(50);
+
+                entity.Property(u => u.PasswordHash).IsRequired().HasMaxLength(255);
+                entity.Property(u => u.Rol).IsRequired().HasDefaultValue("invitado");
+
+            });
+
             modelBuilder.Entity<Rutina>(r =>
             {
                 r.HasKey(r => r.RutinaId);

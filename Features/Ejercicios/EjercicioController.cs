@@ -125,7 +125,6 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             });
 
             return Ok(importResult);
-
         }
 
         /// <summary>

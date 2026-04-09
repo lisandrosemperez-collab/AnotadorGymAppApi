@@ -1,4 +1,4 @@
-﻿using AnotadorGymAppApi.Domain.Entities;
+﻿using AnotadorGymAppApi.Domain.Entities.Ejercicio;
 using AnotadorGymAppApi.Features.Common.Pagination;
 using AnotadorGymAppApi.Features.Ejercicios.DTOs;
 using AnotadorGymAppApi.Infrastructure.Context;

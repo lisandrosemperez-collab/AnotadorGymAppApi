@@ -1,4 +1,4 @@
-﻿using AnotadorGymAppApi.Domain.Entities;
+﻿using AnotadorGymAppApi.Domain.Entities.Rutina;
 using AnotadorGymAppApi.Features.Common.Results;
 using AnotadorGymAppApi.Features.Common.Validation;
 using AnotadorGymAppApi.Features.Rutinas.DTOs;

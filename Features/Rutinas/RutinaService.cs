@@ -1,10 +1,10 @@
-﻿using AnotadorGymAppApi.Domain.Entities;
-using AnotadorGymAppApi.Features.Common.Pagination;
+﻿using AnotadorGymAppApi.Features.Common.Pagination;
 using AnotadorGymAppApi.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
 using AnotadorGymAppApi.Features.Rutinas.DTOs;
 using AnotadorGymAppApi.Features.Ejercicios.DTOs;
 using AnotadorGymAppApi.Features.Rutinas.Results;
+using AnotadorGymAppApi.Domain.Entities.Rutina;
 
 namespace AnotadorGymAppApi.Features.Rutinas
 {

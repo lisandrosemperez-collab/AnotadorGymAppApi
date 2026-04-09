@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace AnotadorGymAppApi.Domain.Entities
+namespace AnotadorGymAppApi.Domain.Entities.Ejercicio
 {
     public class GrupoMuscular
     {

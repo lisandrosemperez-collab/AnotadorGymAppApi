@@ -1,4 +1,4 @@
-﻿namespace AnotadorGymAppApi.Domain.Entities
+﻿namespace AnotadorGymAppApi.Domain.Entities.Ejercicio
 {
     public class Musculos
     {

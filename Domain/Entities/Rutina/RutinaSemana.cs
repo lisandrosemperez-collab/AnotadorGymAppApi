@@ -1,4 +1,4 @@
-﻿namespace AnotadorGymAppApi.Domain.Entities
+﻿namespace AnotadorGymAppApi.Domain.Entities.Rutina
 {
     public class RutinaSemana
     {
