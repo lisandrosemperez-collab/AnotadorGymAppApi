@@ -23,28 +23,32 @@ namespace AnotadorGymAppApi.Features.Usuarios
             _jwtProvider = jwtProvider;
             _usuarioService = usuarioService;
         }
-
-        
+        /// <summary>
+        /// Autentica a un usuario y devuelve un token JWT.
+        /// </summary>
+        /// <remarks>
+        /// Envía el UserName y la Password en el cuerpo de la solicitud. 
+        /// Si las credenciales son válidas, recibirás un token con una validez de 1 hora 
+        /// que incluye los permisos (Roles) del usuario para acceder a rutas protegidas.
+        /// </remarks>
+        /// <returns>Un token JWT firmado si la operación es exitosa.</returns>
+        /// <response code="200">Retorna el token generado correctamente.</response>
+        /// <response code="401">Si el nombre de usuario o la contraseña no coinciden.</response>
         [HttpPost("login")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Login([FromBody] UsuarioDto request)
         {
-            var validar = await _usuarioService.ValidarUsuario(request);
+            var usuario = await _usuarioService.ValidarUsuario(request);
 
-            if (!validar)
+            if (usuario == null)
             {
                 return Unauthorized(new { message = "Usuario o contraseña incorrectos" });
             }
 
-            var usuario = new Usuario()
-            {
-                UserName = request.UserName,
-                Email = request.UserName,
-                PasswordHash = request.PasswordHash,
-                Rol = request.Rol,
-            };
             var token = _jwtProvider.GenerarJwtToken(usuario);
 
-            return Ok(token);
+            return Ok(new { tokenString = token });
         }
     }
 }
