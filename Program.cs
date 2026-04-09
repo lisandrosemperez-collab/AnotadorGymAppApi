@@ -1,6 +1,8 @@
 ﻿using AnotadorGymAppApi.Features.Common.Validation;
 using AnotadorGymAppApi.Features.Ejercicios;
 using AnotadorGymAppApi.Features.Rutinas;
+using AnotadorGymAppApi.Features.Usuarios;
+using AnotadorGymAppApi.Features.Usuarios.DTO;
 using AnotadorGymAppApi.Infrastructure.Context;
 using AnotadorGymAppApi.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -52,6 +54,7 @@ builder.Services.AddScoped<IRutinaImport, RutinaImportService>();
 builder.Services.AddScoped<IRutinaService, RutinaService>();
 builder.Services.AddScoped<IJsonFileValidator, JsonFileValidator>();
 builder.Services.AddScoped<IJwtProvider, JwtProvider>();
+builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
