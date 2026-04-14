@@ -384,7 +384,7 @@ namespace AnotadorGymAppApi.Features.Rutinas
             return Ok(rutina);
         }
 
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         [HttpPatch("{id}")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] ActualizarRutinaDto dto)
         {
@@ -394,7 +394,7 @@ namespace AnotadorGymAppApi.Features.Rutinas
 
             return NoContent();
         }
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Eliminar(int id)
         {

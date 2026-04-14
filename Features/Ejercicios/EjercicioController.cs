@@ -338,10 +338,10 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 PageNumber = pagination.Page,
                 PageSize = pagination.PageSize
             });
-        }        
+        }
 
         // DELETE protegido
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Eliminar(int id)
         {
@@ -353,7 +353,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         }
 
         // PATCH protegido
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         [HttpPatch("{id}")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] EjercicioSimpleDTO dto)
         {
