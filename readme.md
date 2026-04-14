@@ -7,45 +7,41 @@
 ![Render](https://img.shields.io/badge/Render-deployed-46E3B7?logo=render)
 [![Swagger](https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?logo=swagger)](https://anotadorgymappapi.onrender.com)
 
-API RESTful para la gestión de ejercicios y entrenamientos, diseñada como backend de una aplicación móvil con arquitectura offline-first.. Permite importar, validar y consultar ejercicios, con autenticación JWT y despliegue en la nube mediante Render.
+API RESTful profesional para la gestión de ejercicios y entrenamientos. Este servidor centraliza la lógica de negocio, seguridad y persistencia de datos para un ecosistema integral de fitness.
 
 ## 🚀 Características
-- **.NET 9.0 con Web API** (controladores y minimal APIs).
-- **Arquitectura desacoplada** orientada a consumo por clientes móviles (MAUI).
-- **Autenticación JWT** solo para endpoints de importación y validación.
-- **Documentación interactiva** con Swagger/OpenAPI.
-- **Importación masiva** de ejercicios desde archivos JSON.
-- **Validación de formato** sin persistencia.
-- **Base de datos PostgreSQL** en [Neon](https://neon.tech) con más de 900 ejercicios precargados.
-- **Dockerizado** – listo para desarrollo y producción.
-- **Despliegue continuo desde GitHub a Render.**
+- **Arquitectura Backend:** Implementación de **Vertical Slice Architecture** (Features) en .NET 9.
+- **Seguridad Avanzada:** Autenticación **JWT** con control de acceso basado en roles (**Admin/Invitado**) y hashing de contraseñas con **BCrypt**.
+- **Base de Datos:** PostgreSQL alojado en [Neon](https://neon.tech) con más de 900 ejercicios precargados.
+- **Optimización de Rendimiento:** Endpoint principal optimizado para servir grandes volúmenes de datos con tiempos de respuesta mínimos.
+- **Documentación Dinámica:** Swagger/OpenAPI enriquecido con comentarios XML para una integración fluida con clientes.
+- **Despliegue Profesional:** Dockerizado y desplegado en la nube mediante **Render**.
+
 
 ## 📦 Tecnologías
-- [.NET 9](https://dotnet.microsoft.com/)
-- [Entity Framework Core](https://docs.microsoft.com/ef/core/) (con PostgreSQL)
-- [Swashbuckle.AspNetCore](https://github.com/domaindrivendev/Swashbuckle.AspNetCore)
-- [Docker](https://www.docker.com/)
-- [Render](https://render.com/)
-- [Neon PostgreSQL](https://neon.tech)
+- **Core:** .NET 9 & ASP.NET Core.
+- **Persistencia:** Entity Framework Core (PostgreSQL).
+- **Seguridad:** Microsoft.AspNetCore.Authentication.JwtBearer.
+- **Infraestructura:** Docker & Render.
 
-## ⚡ Rendimiento
-
-- Endpoint principal (`GET /api/ejercicios`) optimizado para servir más de 900 ejercicios.
-- Tiempo de respuesta promedio bajo incluso con relaciones complejas.
-- Procesamiento interno optimizado con Entity Framework Core.
+## 📁 Estructura del Proyecto (Vertical Slicing)
+La lógica está organizada por **Features**, permitiendo que cada funcionalidad sea independiente y escalable:
+```text
+src/
+├── Domain/           # Entidades puras (Ejercicio, Rutina, Usuario)
+├── Infrastructure/   # Persistencia (DbContext), Migraciones y Seguridad (JwtProvider)
+└── Features/         # Rebanadas verticales (Slice)
+    ├── Usuarios/     # Login, Roles, AuthController, UsuarioService
+    ├── Ejercicios/   # Listado y CRUD de ejercicios
+    └── Rutinas/      # Gestión de planes de entrenamiento
+```
 
 ## 🌐 API en producción
 La API ya se encuentra desplegada y funcionando en Render. Puedes probarla directamente sin necesidad de clonar el repositorio:
 
 **📚 Swagger UI:** https://anotadorgymappapi.onrender.com/
 
-**Desde Swagger** puedes explorar todos los endpoints, ver los modelos de datos y probar las peticiones en tiempo real.
-
-Los endpoints **GET /api/ejercicios** son públicos y no requieren autenticación.
-
-Los endpoints **POST /api/imports y POST /api/imports/validate** requieren un **token JWT**. Para obtenerlo, contacta al administrador (ver sección **Soporte y Contacto**).
-
-**Nota:** La base de datos de producción contiene más de 900 ejercicios precargados, por lo que las respuestas del GET serán inmediatas y enriquecidas.
+Nota: Los métodos de consulta (GET) son públicos. Los métodos de modificación (POST, PUT, DELETE) requieren autorización mediante encabezado Authorization: Bearer <token>.
 
 ## 🔧 Configuración local
 
@@ -114,21 +110,14 @@ Swagger disponible en:
 https://anotadorgymappapi.onrender.com
 
 ## 🔐 Autenticación
-Los siguientes endpoints requieren un token JWT en el encabezado Authorization:
+Para acceder a endpoints protegidos (como importación de datos), debés obtener un token a través del login:
 
-- **POST /api/imports (importación)**
-- **POST /api/imports/validate**
-- **El resto de endpoints** (como GET /api/ejercicios) son públicos y no necesitan autenticación.
+Endpoint: POST /api/auth/login
 
-### Obtener un token
-Contacta al administrador en lisandrosemperez@gmail.com para solicitar un token de acceso.
+Payload: { "userName": "admin", "password": password }
 
-### Usar el token
-Incluye el token en el encabezado Authorization:
+Uso: Incluir el string devuelto en el header: Authorization: Bearer <tu-token>
 
-```text
-Authorization: Bearer <tu-token-jwt>
-```
 Desde Swagger UI, haz clic en el botón Authorize y pega el token en el formato Bearer <token>.
 
 ## 📘 Endpoints principales
@@ -226,8 +215,13 @@ La API utiliza **PostgreSQL** alojado en [Neon](https://neon.tech/). Actualmente
 Si deseas utilizar esta base de datos precargada, solicita la **cadena de conexión** al administrador (ver contacto abajo).
 De lo contrario, puedes crear tu propia base de datos en Neon (gratuito) y usar migraciones de Entity Framework para generar el esquema.
 
-## 📱 Aplicación móvil MAUI
-Este API es consumida por la aplicación móvil [AnotadorGymApp](https://github.com/lisandrosemperez-collab/AnotadorGymApp) desarrollada en .NET MAUI. La app sincroniza los ejercicios desde la API y los almacena en una base de datos local SQLite para su uso offline.
+📱 Ecosistema de Aplicaciones
+Esta API sirve como el motor principal para los siguientes clientes:
+
+WebApp Administrativa: Desarrollada en React + TypeScript, permite la gestión visual de los datos con soporte para temas (Dark/Light Mode) y rutas protegidas por roles.
+
+App Móvil Nativa: Desarrollada en .NET MAUI, utiliza esta API para poblar una base de datos local SQLite bajo una arquitectura Offline-first.
+[AnotadorGymApp](https://github.com/lisandrosemperez-collab/AnotadorGymApp)
 
 ## ✉️ Soporte y Contacto
 
