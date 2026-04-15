@@ -142,13 +142,13 @@ app.UseSwaggerUI(options =>
 });
 
 app.UseHttpsRedirection();
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseOutputCache();
 
 app.MapControllers();
 
-app.UseCors("AllowFrontend");
 
 app.MapGet("/health", () => Results.Ok(new
 {
