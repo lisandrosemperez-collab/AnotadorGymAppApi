@@ -7,7 +7,23 @@
 ![Render](https://img.shields.io/badge/Render-deployed-46E3B7?logo=render)
 [![Swagger](https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?logo=swagger)](https://anotadorgymappapi.onrender.com)
 
-API RESTful profesional para la gestión de ejercicios y entrenamientos. Este servidor centraliza la lógica de negocio, seguridad y persistencia de datos para un ecosistema integral de fitness.
+API backend para gestión de rutinas de entrenamiento, diseñada para ser consumida por aplicaciones web y móviles.
+👉 Lista para consumo en producción (deploy en Render + documentación Swagger interactiva)
+
+Permite consultar más de 900 ejercicios y rutinas estructuradas, con control de acceso por roles y optimización de rendimiento mediante cache.
+
+## 💡 ¿Qué problema resuelve?
+
+Esta API está pensada como backend de una aplicación de entrenamiento donde:
+
+- Los usuarios necesitan consultar ejercicios y rutinas de forma rápida
+- Los datos deben mantenerse consistentes (sin acceso público a escritura)
+- El sistema debe escalar para manejar grandes volúmenes de información
+
+Por eso:
+- Los endpoints de lectura son accesibles en modo Invitado
+- Las modificaciones están restringidas a Admin
+- Se implementa cache con invalidación para mejorar performance sin perder consistencia
 
 ## 🚀 Características
 - **Arquitectura Backend:** Implementación de **Vertical Slice Architecture** (Features) en .NET 9.
@@ -38,87 +54,46 @@ src/
 
 ## 🌐 API en producción
 La API ya se encuentra desplegada y funcionando en Render. Puedes probarla directamente sin necesidad de clonar el repositorio:
-
-**📚 Swagger UI:** https://anotadorgymappapi.onrender.com/
-
 Nota: Los métodos de consulta (GET) son públicos. Los métodos de modificación (POST, PUT, DELETE) requieren autorización mediante encabezado Authorization: Bearer <token>.
 
-## 🔧 Configuración local
-
-### Prerrequisitos
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (opcional)
-- Git
-
-### Clonar y ejecutar
-```bash
-git clone https://github.com/lisandrosemperez-collab/AnotadorGymAppApi.git
-cd AnotadorGymAppApi
-dotnet restore
-dotnet run
-```
-La API estará disponible en http://localhost:5000 (por defecto).
-Swagger UI: http://localhost:5000/swagger
-
-## ⚙️ Configuración de variables de entorno
-
-La API requiere las siguientes variables para funcionar correctamente:
-
-| Variable                          | Descripción                                                                               | Ejemplo (desarrollo)                                                                 |
-|-----------------------------------|-------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
-| `ConnectionStrings__DefaultConnection` | Cadena de conexión a PostgreSQL en Neon. **Debes solicitarla al administrador** (ver contacto abajo) o crear tu propia base de datos. | `Host=ep-mute-darkness-xxx.neon.tech;Database=neondb;Username=alice;Password=xxxx;SSL Mode=Require` |
-| `Jwt__Issuer`                     | Emisor del token JWT. Puede ser cualquier nombre, por ejemplo `"Admin"`.                 | `Admin`                                                                              |
-| `Jwt__Secret`                     | Clave secreta para firmar tokens (mínimo 16 caracteres). Usa una diferente en producción. | `MiClaveSuperSecretaParaDesarrollo123`                                               |
-
-**Importante:**  
-- No subas estos valores al repositorio.  
-- En **desarrollo**, puedes definirlas en `appsettings.json` (este archivo debe estar en `.gitignore`).
-- En **producción** (Render), configúralas desde el dashboard del servicio
-
-#### 🔹 Ejemplo de `appsettings.json`
-
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=AnotadorGym;Username=postgres;Password=tu_password"
-  },
-  "Jwt": {
-    "Issuer": "Admin",
-    "Secret": "MiClaveSuperSecretaParaDesarrollo123"
-  }
-}
-```
-Nota: Si no deseas usar tu propia base de datos, escribe a lisandrosemperez@gmail.com para obtener la cadena de conexión a la base de datos precargada con 900 ejercicios.
-
-## 🐳 Ejecutar con Docker
-```bash
-docker build -t anotador-api .
-docker run -d -p 5000:8080 -e PORT=8080 --name anotador-api anotador-api
-```
-Accede a http://localhost:5000/swagger
-
-## 🌍 Despliegue en Render
-
-Este repositorio está configurado para desplegarse automáticamente en Render mediante Docker:
-
-- Conecta tu repositorio de GitHub a Render.
-- Render detecta automáticamente el `Dockerfile`.
-- Configura las variables de entorno desde el dashboard.
-- El servicio se expone mediante una URL pública.
-
-Swagger disponible en:
-https://anotadorgymappapi.onrender.com
+**📚 Swagger disponible en:** https://anotadorgymappapi.onrender.com
+💡 Puedes probar la API directamente desde Swagger utilizando el endpoint `/api/auth/login/invitado`.
 
 ## 🔐 Autenticación
-Para acceder a endpoints protegidos (como importación de datos), debés obtener un token a través del login:
+
+La API utiliza autenticación mediante JWT (Bearer Token).
+Existen dos formas de obtener un token:
+
+### 👤 Login como usuario (Admin)
+Permite acceso completo (GET, POST, PATCH, DELETE)
 
 Endpoint: POST /api/auth/login
 
-Payload: { "userName": "admin", "password": password }
+```json
+{
+  "userName": "admin",
+  "password": "tu_password"
+}
+```
 
-Uso: Incluir el string devuelto en el header: Authorization: Bearer <tu-token>
+### 👀 Login como Invitado (sin credenciales)
 
-Desde Swagger UI, haz clic en el botón Authorize y pega el token en el formato Bearer <token>.
+Permite acceder a los endpoints de solo lectura.
+
+Endpoint: POST /api/auth/login/invitado
+
+No requiere body.
+
+Una vez obtenido el token, debe enviarse en el header:
+
+Authorization: Bearer <tu-token>
+
+### 🧪 Uso desde Swagger
+
+1. Ejecutar `/api/auth/login` o `/api/auth/login/invitado`
+2. Copiar el `tokenString` de la respuesta
+3. Hacer clic en **Authorize**
+4. Pegar **solo el token** (Swagger agrega automáticamente `Bearer`)
 
 ## 📘 Endpoints principales
 ### 🔹GET /api/ejercicios
@@ -212,16 +187,78 @@ Parámetros:
 ## 🗄️ Base de datos
 La API utiliza **PostgreSQL** alojado en [Neon](https://neon.tech/). Actualmente la base de datos contiene más de **900 ejercicios** precargados para facilitar el desarrollo y las pruebas.
 
-Si deseas utilizar esta base de datos precargada, solicita la **cadena de conexión** al administrador (ver contacto abajo).
-De lo contrario, puedes crear tu propia base de datos en Neon (gratuito) y usar migraciones de Entity Framework para generar el esquema.
+La API está diseñada para utilizar una base de datos propia.
+Para pruebas rápidas, puedes utilizar la instancia desplegada en Render, que ya incluye datos precargados.
 
-📱 Ecosistema de Aplicaciones
+## 📱 Ecosistema de Aplicaciones
 Esta API sirve como el motor principal para los siguientes clientes:
 
 WebApp Administrativa: Desarrollada en React + TypeScript, permite la gestión visual de los datos con soporte para temas (Dark/Light Mode) y rutas protegidas por roles.
 
 App Móvil Nativa: Desarrollada en .NET MAUI, utiliza esta API para poblar una base de datos local SQLite bajo una arquitectura Offline-first.
 [AnotadorGymApp](https://github.com/lisandrosemperez-collab/AnotadorGymApp)
+
+## 🔧 Configuración local
+
+### Prerrequisitos
+- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (opcional)
+- Git
+
+### Clonar y ejecutar
+```bash
+git clone https://github.com/lisandrosemperez-collab/AnotadorGymAppApi.git
+cd AnotadorGymAppApi
+dotnet restore
+dotnet run
+```
+La API estará disponible en http://localhost:5000 (por defecto).
+Swagger UI: http://localhost:5000/swagger
+
+## ⚙️ Configuración de variables de entorno
+
+La API requiere las siguientes variables para funcionar correctamente:
+
+| Variable                          | Descripción                                                                               | Ejemplo (desarrollo)                                                                 |
+|-----------------------------------|-------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| `ConnectionStrings__DefaultConnection` | Cadena de conexión a PostgreSQL. Debe ser proporcionada por el usuario (puede utilizar Neon u otro proveedor). | `Host=ep-mute-darkness-xxx.neon.tech;Database=neondb;Username=alice;Password=xxxx;SSL Mode=Require` |
+| `Jwt__Issuer`                     | Emisor del token JWT. Puede ser cualquier nombre, por ejemplo `"Admin"`.                 | `Admin`                                                                              |
+| `Jwt__Secret`                     | Clave secreta para firmar tokens (mínimo 16 caracteres). Usa una diferente en producción. | `MiClaveSuperSecretaParaDesarrollo123`                                               |
+
+**Importante:**  
+- No subas estos valores al repositorio.  
+- En **desarrollo**, puedes definirlas en `appsettings.json` (este archivo debe estar en `.gitignore`).
+- En **producción** (Render), configúralas desde el dashboard del servicio
+
+#### 🔹 Ejemplo de `appsettings.json`
+
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Database=AnotadorGym;Username=postgres;Password=tu_password"
+  },
+  "Jwt": {
+    "Issuer": "Admin",
+    "Secret": "MiClaveSuperSecretaParaDesarrollo123"
+  }
+}
+```
+
+## 🐳 Ejecutar con Docker
+```bash
+docker build -t anotador-api .
+docker run -d -p 5000:8080 -e PORT=8080 --name anotador-api anotador-api
+```
+Accede a http://localhost:5000/swagger
+
+## 🌍 Despliegue en Render
+
+Este repositorio está configurado para desplegarse automáticamente en Render mediante Docker:
+
+- Conecta tu repositorio de GitHub a Render.
+- Render detecta automáticamente el `Dockerfile`.
+- Configura las variables de entorno desde el dashboard.
+- El servicio se expone mediante una URL pública.
 
 ## ✉️ Soporte y Contacto
 
