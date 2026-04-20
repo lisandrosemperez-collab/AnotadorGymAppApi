@@ -8,8 +8,17 @@ namespace AnotadorGymAppApi.Features.Usuarios
     public class UsuarioService : IUsuarioService
     {
         private readonly AppDbContext _appDbContext;
-        public UsuarioService(AppDbContext appDbContext) { _appDbContext = appDbContext; }        
-        public async Task<Usuario> ValidarUsuario(UsuarioDto request)
+        public UsuarioService(AppDbContext appDbContext) { _appDbContext = appDbContext; }
+
+        public async Task<Usuario?> ObtenerUsuarioInvitado()
+        {
+            var usuarioInvitado = await _appDbContext.Usuarios.
+                FirstOrDefaultAsync(u => u.Rol == "Invitado");
+            
+            return usuarioInvitado;
+        }
+
+        public async Task<Usuario?> ValidarUsuario(UsuarioDto request)
         {
             var usuario = await _appDbContext.Usuarios.FirstOrDefaultAsync(u => u.UserName == request.UserName);
             

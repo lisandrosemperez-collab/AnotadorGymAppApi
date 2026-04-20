@@ -344,6 +344,7 @@ namespace AnotadorGymAppApi.Features.Rutinas
         /// <response code="500">Error interno del servidor.</response>        
         [ProducesResponseType(typeof((List<RutinaDto> items, int totalCount)), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        [Authorize(Roles = "Admin,Invitado")]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<RutinaDto>>> GetAllRutinas()
         {
@@ -370,8 +371,9 @@ namespace AnotadorGymAppApi.Features.Rutinas
         [ProducesResponseType(typeof(RutinaDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [Authorize(Roles = "Admin,Invitado")]
         [HttpGet("{nombre}")]
-        public async Task<ActionResult<IEnumerable<RutinaDto>>> GetRutina(string nombre)
+        public async Task<ActionResult<RutinaDto>> GetRutina(string nombre)
         {
             if (string.IsNullOrWhiteSpace(nombre))
                 return BadRequest();

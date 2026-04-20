@@ -101,9 +101,10 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "Introduce tu token JWT en el formato: **Bearer {token}**\n\n"
-                    + "Ejemplo: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`\n\n"
-                    + "Para obtener un token, contacta a: **lisandrosemperez@gmail.com**"
+        Description = "🔐 Pega solo el token JWT obtenido desde /login o /login/invitado.\n\n"
+            + "⚠️ No es necesario escribir 'Bearer', Swagger lo agrega automáticamente.\n\n"
+            + "Ejemplo:\n"
+            + "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     });
     options.AddSecurityRequirement(new()
     {
