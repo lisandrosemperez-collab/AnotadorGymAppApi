@@ -11,7 +11,7 @@ using System.Text.Json;
 
 namespace AnotadorGymAppApi.Features.Rutinas
 {
-    [Route("api/rutinas")]
+    [Route("api/[controller]")]
     [ApiController]
     public class RutinaController : ControllerBase
     {

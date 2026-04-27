@@ -11,10 +11,11 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
 using System.Text.Json;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace AnotadorGymAppApi.Features.Ejercicios
 {
-    [Route("api/ejercicios")]
+    [Route("api/[controller]")]
     [ApiController]
     public class EjercicioController : ControllerBase
     {
@@ -306,11 +307,16 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         /// <response code="403">Usuario autenticado sin permisos suficientes.</response>
         /// <response code="500">Error interno del servidor.</response>
         [Authorize(Roles = "Admin,Invitado")]
-        [HttpGet("all")]
+        [HttpGet("todos")]
         public async Task<ActionResult<IEnumerable<EjercicioDTO>>> GetEjercicios()
         {
-            var ejercicios = await _ejercicioService.GetAllEjercicios();
-            return Ok(ejercicios);
+            var (data, fromCache) = await _ejercicioService.GetAllEjercicios();
+
+            _logger.LogInformation("Ejercicios obtenidos desde {Source}", fromCache ? "CACHE" : "DB");
+            
+            AddPaginationHeaders(data.Count, null, fromCache, !data.Any());
+
+            return Ok(data);
         }
 
         /// <summary>
@@ -324,23 +330,35 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         /// <response code="400">Parámetros inválidos.</response>
         /// <response code="500">Error interno del servidor.</response>
         [Authorize(Roles = "Admin,Invitado")]
-        [HttpGet]
-        [OutputCache(Duration = 60)]
+        [HttpGet]        
         public async Task<ActionResult<PagedResult<EjercicioDTO>>> GetEjercicios([FromQuery] PaginationParams pagination)
         {
-            var result = await _ejercicioService.GetEjercicios(pagination);
+            var (data,totalCount, fromCache) = await _ejercicioService.GetEjercicios(pagination);
+            _logger.LogInformation("Ejercicios obtenidos desde {Source}", fromCache ? "CACHE" : "DB");
 
-            Response.Headers["X-Total-Count"] = result.totalCount.ToString();
-            Response.Headers["X-Page-Number"] = pagination.Page.ToString();
-            Response.Headers["X-Page-Size"] = pagination.PageSize.ToString();
+            AddPaginationHeaders(totalCount, pagination, fromCache, !data.Any());
 
             return Ok(new PagedResult<EjercicioDTO>
             {
-                Items = result.items,
-                TotalCount = result.totalCount,
+                Items = data,
+                TotalCount = totalCount,
                 PageNumber = pagination.Page,
                 PageSize = pagination.PageSize
             });
+        }
+
+        [Authorize(Roles = "Admin,Invitado")]
+        [HttpGet("{id}")]
+        public async Task<ActionResult<EjercicioDTO>> GetPorId(int id)
+        {
+            var (result,fromCache) = await _ejercicioService.GetPorId(id);
+
+            if (result == null) return NotFound();
+            _logger.LogInformation("Ejercicios obtenidos desde {Source}", fromCache ? "CACHE" : "DB");
+
+            Response.Headers["X-Cache"] = fromCache ? "HIT" : "MISS";
+
+            return Ok(result);
         }
 
         // DELETE protegido
@@ -364,16 +382,17 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             if (ejercicio == null) return NotFound();
             return Ok(ejercicio);
         }
-
-        [Authorize(Roles = "Admin,Invitado")]
-        [HttpGet("{id}")]
-        public async Task<ActionResult<EjercicioDTO>> GetPorId(int id)
+        private void AddPaginationHeaders(int totalCount, PaginationParams? pagination, bool fromCache, bool isEmpty)
         {
-            var ejercicio = await _ejercicioService.GetPorId(id);                
-            
-            if (ejercicio == null) return NotFound();
+            Response.Headers["X-Cache"] = fromCache ? "HIT" : "MISS";
+            Response.Headers["X-Empty-Result"] = isEmpty.ToString().ToLower();
+            Response.Headers["X-Total-Count"] = totalCount.ToString();
 
-            return Ok(ejercicio);
+            if (pagination != null)
+            {
+                Response.Headers["X-Page-Number"] = pagination.Page.ToString();
+                Response.Headers["X-Page-Size"] = pagination.PageSize.ToString();
+            }
         }
     }
 }

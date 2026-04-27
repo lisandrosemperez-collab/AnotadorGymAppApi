@@ -125,12 +125,24 @@ namespace AnotadorGymAppApi.Infrastructure.Context
                     .OnDelete(DeleteBehavior.Restrict);
 
                 ejercicio.HasMany(e => e.MusculosSecundarios)
-                        .WithMany(m => m.EjerciciosSecundarios)
-                        .UsingEntity(j => j.ToTable("EjercicioMusculoSecundarios"));
+                    .WithMany(m => m.EjerciciosSecundarios)
+                    .UsingEntity<Dictionary<string,object>>(
+                        "EjercicioMusculoSecundarios",
+                        j => j.HasOne<Musculos>()
+                            .WithMany()
+                            .HasForeignKey("MusculoId")
+                            .OnDelete(DeleteBehavior.Cascade),
+                        j => j.HasOne<Ejercicio>()
+                            .WithMany()
+                            .HasForeignKey("EjercicioId")
+                            .OnDelete(DeleteBehavior.Cascade),
+                        j => { j.HasKey("EjercicioId", "MusculoId"); }
+                    );
 
                 ejercicio.HasOne(e => e.MusculoPrimario)
                         .WithMany(m => m.EjerciciosPrimarios)
-                        .HasForeignKey(e => e.MusculoPrimarioId);
+                        .HasForeignKey(e => e.MusculoPrimarioId)
+                        .OnDelete(DeleteBehavior.Restrict);
 
                 ejercicio.HasOne(e => e.GrupoMuscular)
                         .WithMany(g => g.Ejercicios)

@@ -4,9 +4,14 @@ obj/
 .vs/
 *.user
 *.db
-appsettings.Development.json
 
-# Files built by Visual Studio
+# Configuración local
+appsettings.Development.json
+# appsettings.json  # (descomentar si contiene secretos)
+
+# Publicación Azure
+Properties/PublishProfiles/
+Properties/ServiceDependencies/
 *.[Pp]ublish.xml
 *.publishproj
 
@@ -14,4 +19,11 @@ appsettings.Development.json
 [Nn]uget/
 *.nupkg
 *.snupkg
+
+# Logs
+*.log
+logs/
+
+# Otros
+.DS_Store
 

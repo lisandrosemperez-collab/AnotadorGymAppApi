@@ -3,6 +3,7 @@ using AnotadorGymAppApi.Features.Ejercicios;
 using AnotadorGymAppApi.Features.Rutinas;
 using AnotadorGymAppApi.Features.Usuarios;
 using AnotadorGymAppApi.Features.Usuarios.DTO;
+using AnotadorGymAppApi.Infrastructure.Cache;
 using AnotadorGymAppApi.Infrastructure.Context;
 using AnotadorGymAppApi.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -45,8 +46,15 @@ builder.Services.AddLogging(logging =>
 builder.Services.AddEndpointsApiExplorer();    
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));        
+{     
+    options.UseSqlServer(builder.Configuration.GetConnectionString("AzureSqlConnection"),sql =>
+    {
+        sql.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null
+            );
+    });
 });
 builder.Services.AddScoped<IEjercicioService, EjercicioService>();
 builder.Services.AddScoped<IEjercicioImport, EjercicioImportService>();
@@ -55,6 +63,7 @@ builder.Services.AddScoped<IRutinaService, RutinaService>();
 builder.Services.AddScoped<IJsonFileValidator, JsonFileValidator>();
 builder.Services.AddScoped<IJwtProvider, JwtProvider>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+builder.Services.AddScoped<ICacheService, BlobCacheService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

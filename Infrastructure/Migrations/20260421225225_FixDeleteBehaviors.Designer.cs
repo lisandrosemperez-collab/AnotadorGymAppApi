@@ -3,17 +3,17 @@ using System;
 using AnotadorGymAppApi.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace AnotadorGymAppApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260221005552_PropiedadesIndexNombreIsUnique")]
-    partial class PropiedadesIndexNombreIsUnique
+    [Migration("20260421225225_FixDeleteBehaviors")]
+    partial class FixDeleteBehaviors
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -21,32 +21,32 @@ namespace AnotadorGymAppApi.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "9.0.12")
-                .HasAnnotation("Relational:MaxIdentifierLength", 63);
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
-            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Ejercicio", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Ejercicio.Ejercicio", b =>
                 {
                     b.Property<int>("EjercicioId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("EjercicioId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EjercicioId"));
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("GrupoMuscularId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.Property<int>("MusculoPrimarioId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("nvarchar(100)");
 
                     b.HasKey("EjercicioId");
 
@@ -60,72 +60,72 @@ namespace AnotadorGymAppApi.Migrations
                     b.ToTable("Ejercicios");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.GrupoMuscular", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Ejercicio.GrupoMuscular", b =>
                 {
                     b.Property<int>("GrupoMuscularId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("GrupoMuscularId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("GrupoMuscularId"));
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("GrupoMuscularId");
 
                     b.ToTable("GrupoMusculares");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Musculos", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Ejercicio.Musculos", b =>
                 {
                     b.Property<int>("MusculoId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("MusculoId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MusculoId"));
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("MusculoId");
 
                     b.ToTable("Musculos");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.Rutina", b =>
                 {
                     b.Property<int>("RutinaId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RutinaId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RutinaId"));
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Dificultad")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FrecuenciaPorGrupo")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ImageSource")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("TiempoPorSesion")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("RutinaId");
 
@@ -135,27 +135,27 @@ namespace AnotadorGymAppApi.Migrations
                     b.ToTable("Rutinas");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.RutinaDia", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaDia", b =>
                 {
                     b.Property<int>("RutinaDiaId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RutinaDiaId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RutinaDiaId"));
 
                     b.Property<string>("NombreRutinaDia")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Notas")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("NumeroDia")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.Property<int>("RutinaSemanaId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.HasKey("RutinaDiaId");
 
@@ -164,22 +164,22 @@ namespace AnotadorGymAppApi.Migrations
                     b.ToTable("RutinaDias");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.RutinaEjercicio", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaEjercicio", b =>
                 {
                     b.Property<int>("RutinaEjercicioId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RutinaEjercicioId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RutinaEjercicioId"));
 
                     b.Property<int>("EjercicioId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.Property<int>("NumeroEjercicio")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.Property<int>("RutinaDiaId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.HasKey("RutinaEjercicioId");
 
@@ -190,23 +190,23 @@ namespace AnotadorGymAppApi.Migrations
                     b.ToTable("RutinaEjercicios");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.RutinaSemana", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaSemana", b =>
                 {
                     b.Property<int>("RutinaSemanaId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RutinaSemanaId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RutinaSemanaId"));
 
                     b.Property<string>("NombreSemana")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("NumeroSemana")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.Property<int>("RutinaId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.HasKey("RutinaSemanaId");
 
@@ -215,31 +215,31 @@ namespace AnotadorGymAppApi.Migrations
                     b.ToTable("RutinaSemanas");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.RutinaSerie", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaSerie", b =>
                 {
                     b.Property<int>("RutinaSerieId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RutinaSerieId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RutinaSerieId"));
 
                     b.Property<TimeSpan?>("Descanso")
-                        .HasColumnType("interval");
+                        .HasColumnType("time");
 
                     b.Property<int>("NumeroSerie")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.Property<int?>("Porcentaje1RM")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.Property<int?>("Repeticiones")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.Property<int>("RutinaEjercicioId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.Property<int>("Tipo")
-                        .HasColumnType("integer");
+                        .HasColumnType("int");
 
                     b.HasKey("RutinaSerieId");
 
@@ -248,30 +248,67 @@ namespace AnotadorGymAppApi.Migrations
                     b.ToTable("RutinaSeries");
                 });
 
-            modelBuilder.Entity("EjercicioMusculos", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Usuario.Usuario", b =>
                 {
-                    b.Property<int>("EjerciciosSecundariosEjercicioId")
-                        .HasColumnType("integer");
+                    b.Property<int>("UsuarioId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<int>("MusculosSecundariosMusculoId")
-                        .HasColumnType("integer");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UsuarioId"));
 
-                    b.HasKey("EjerciciosSecundariosEjercicioId", "MusculosSecundariosMusculoId");
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
-                    b.HasIndex("MusculosSecundariosMusculoId");
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Rol")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValue("invitado");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("UsuarioId");
+
+                    b.HasIndex("UserName")
+                        .IsUnique();
+
+                    b.ToTable("Usuarios");
+                });
+
+            modelBuilder.Entity("EjercicioMusculoSecundarios", b =>
+                {
+                    b.Property<int>("EjercicioId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MusculoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("EjercicioId", "MusculoId");
+
+                    b.HasIndex("MusculoId");
 
                     b.ToTable("EjercicioMusculoSecundarios", (string)null);
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Ejercicio", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Ejercicio.Ejercicio", b =>
                 {
-                    b.HasOne("AnotadorGymAppApi.Domain.Entities.GrupoMuscular", "GrupoMuscular")
+                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Ejercicio.GrupoMuscular", "GrupoMuscular")
                         .WithMany("Ejercicios")
                         .HasForeignKey("GrupoMuscularId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Musculos", "MusculoPrimario")
+                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Ejercicio.Musculos", "MusculoPrimario")
                         .WithMany("EjerciciosPrimarios")
                         .HasForeignKey("MusculoPrimarioId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -282,9 +319,9 @@ namespace AnotadorGymAppApi.Migrations
                     b.Navigation("MusculoPrimario");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.RutinaDia", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaDia", b =>
                 {
-                    b.HasOne("AnotadorGymAppApi.Domain.Entities.RutinaSemana", "RutinaSemana")
+                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaSemana", "RutinaSemana")
                         .WithMany("Dias")
                         .HasForeignKey("RutinaSemanaId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -293,15 +330,15 @@ namespace AnotadorGymAppApi.Migrations
                     b.Navigation("RutinaSemana");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.RutinaEjercicio", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaEjercicio", b =>
                 {
-                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Ejercicio", "Ejercicio")
+                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Ejercicio.Ejercicio", "Ejercicio")
                         .WithMany("RutinasEjercicios")
                         .HasForeignKey("EjercicioId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("AnotadorGymAppApi.Domain.Entities.RutinaDia", "RutinaDia")
+                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaDia", "RutinaDia")
                         .WithMany("Ejercicios")
                         .HasForeignKey("RutinaDiaId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -312,9 +349,9 @@ namespace AnotadorGymAppApi.Migrations
                     b.Navigation("RutinaDia");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.RutinaSemana", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaSemana", b =>
                 {
-                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Rutina", "Rutina")
+                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Rutina.Rutina", "Rutina")
                         .WithMany("Semanas")
                         .HasForeignKey("RutinaId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -323,9 +360,9 @@ namespace AnotadorGymAppApi.Migrations
                     b.Navigation("Rutina");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.RutinaSerie", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaSerie", b =>
                 {
-                    b.HasOne("AnotadorGymAppApi.Domain.Entities.RutinaEjercicio", "RutinaEjercicio")
+                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaEjercicio", "RutinaEjercicio")
                         .WithMany("Series")
                         .HasForeignKey("RutinaEjercicioId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -334,52 +371,52 @@ namespace AnotadorGymAppApi.Migrations
                     b.Navigation("RutinaEjercicio");
                 });
 
-            modelBuilder.Entity("EjercicioMusculos", b =>
+            modelBuilder.Entity("EjercicioMusculoSecundarios", b =>
                 {
-                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Ejercicio", null)
+                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Ejercicio.Ejercicio", null)
                         .WithMany()
-                        .HasForeignKey("EjerciciosSecundariosEjercicioId")
+                        .HasForeignKey("EjercicioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Musculos", null)
+                    b.HasOne("AnotadorGymAppApi.Domain.Entities.Ejercicio.Musculos", null)
                         .WithMany()
-                        .HasForeignKey("MusculosSecundariosMusculoId")
+                        .HasForeignKey("MusculoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Ejercicio", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Ejercicio.Ejercicio", b =>
                 {
                     b.Navigation("RutinasEjercicios");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.GrupoMuscular", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Ejercicio.GrupoMuscular", b =>
                 {
                     b.Navigation("Ejercicios");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Musculos", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Ejercicio.Musculos", b =>
                 {
                     b.Navigation("EjerciciosPrimarios");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.Rutina", b =>
                 {
                     b.Navigation("Semanas");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.RutinaDia", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaDia", b =>
                 {
                     b.Navigation("Ejercicios");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.RutinaEjercicio", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaEjercicio", b =>
                 {
                     b.Navigation("Series");
                 });
 
-            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.RutinaSemana", b =>
+            modelBuilder.Entity("AnotadorGymAppApi.Domain.Entities.Rutina.RutinaSemana", b =>
                 {
                     b.Navigation("Dias");
                 });
