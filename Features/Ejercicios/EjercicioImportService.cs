@@ -166,14 +166,13 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 });                
             }
                         
-            _logger.LogInformation("Importación completada en {Duracion}ms. " +
+            _logger.LogInformation("Importación completada." +
                 "Creados: {Creados}, Actualizados: {Actualizados}, Errores: {Errores}",                
                 resultado.EjerciciosCreados,
                 resultado.EjerciciosActualizados,
                 resultado.Errores.Count);            
 
             return resultado;
-
         }
         private async Task ProcesarEjerciciosAsync(List<EjercicioDTO> ejerciciosJson, Dictionary<string, GrupoMuscular> gruposMuscularesDict, Dictionary<string, Musculos> musculosDict, ImportResultDTO importResult, Dictionary<string, Ejercicio> ejerciciosDb)
         {
