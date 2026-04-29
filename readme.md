@@ -1,105 +1,71 @@
-# 🏋️ Anotador Gym API
-[![.NET](https://img.shields.io/badge/.NET-9.0-purple)](https://dotnet.microsoft.com/)
-[![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-Web%20API-blue)](https://learn.microsoft.com/aspnet/core)
-![EF Core](https://img.shields.io/badge/EF%20Core-9.0-orange)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)
-![Docker](https://img.shields.io/badge/Docker-%E2%9C%94-2496ED?logo=docker)
-![Render](https://img.shields.io/badge/Render-deployed-46E3B7?logo=render)
-[![Swagger](https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?logo=swagger)](https://anotadorgymappapi.onrender.com)
+# 🏋️ Anotador Gym API 
+[![.NET](https://img.shields.io/badge/.NET-9.0-purple)](https://dotnet.microsoft.com/) 
+[![Azure](https://img.shields.io/badge/Azure-Cloud-blue)](https://azure.microsoft.com/) 
+![Azure SQL](https://img.shields.io/badge/Azure%20SQL-Database-0078D4) 
+![Blob Storage](https://img.shields.io/badge/Azure-Blob%20Storage-0089D6) 
+![CI/CD](https://img.shields.io/badge/GitHub%20Actions-CI/CD-black)
 
-API backend para gestión de rutinas de entrenamiento, diseñada para ser consumida por aplicaciones web y móviles.
-👉 Lista para consumo en producción (deploy en Render + documentación Swagger interactiva)
+API backend cloud-native para gestión de rutinas de entrenamiento, diseñada con arquitectura escalable y desplegada en Azure.
 
-Permite consultar más de 900 ejercicios y rutinas estructuradas, con control de acceso por roles y optimización de rendimiento mediante cache.
+## 🚀 Overview
+Backend para una aplicación de fitness que gestiona ejercicios, rutinas y usuarios con control de acceso por roles.
 
-## 💡 ¿Qué problema resuelve?
+Diseñada para alto volumen de lectura, escalabilidad horizontal y despliegue en cloud.
 
-Esta API está pensada como backend de una aplicación de entrenamiento donde:
+## 🧠 Arquitectura 
+- **Pattern**: Vertical Slice (Features-based)
+- **Estilo**: API stateless (escalado horizontal)
+- **Separación**: Domain / Infrastructure / Features
+- **Enfoque**: Cloud-native + 12-factor app
 
-- Los usuarios necesitan consultar ejercicios y rutinas de forma rápida
-- Los datos deben mantenerse consistentes (sin acceso público a escritura)
-- El sistema debe escalar para manejar grandes volúmenes de información
+## ☁️ Infraestructura
+- **Azure App Service** → Hosting de la API 
+- **Azure SQL Database** → Persistencia principal
+- **Azure Blob Storage** → Cache distribuido
+- **GitHub Actions** → CI/CD automático (build + deploy)
 
-Por eso:
-- Los endpoints de lectura son accesibles en modo Invitado
-- Las modificaciones están restringidas a Admin
-- Se implementa cache con invalidación para mejorar performance sin perder consistencia
+## ⚡ Features clave 
+- 🔐 **Autenticación JWT** con roles (Admin / Invitado)
+- ⚡ **Cache distribuido** con **Blob Storage**
+- - Mejora de performance en endpoints de alta carga
+- - Headers X-Cache: HIT/MISS
+- - Invalidación automática en escrituras
+🔄 **CI/CD completo**
+- - Build automático
+- - Deploy directo a Azure
+- 📊 +900 ejercicios precargados optimizados para lectura
 
-## 🚀 Características
-- **Arquitectura Backend:** Implementación de **Vertical Slice Architecture** (Features) en .NET 9.
-- **Seguridad Avanzada:** Autenticación **JWT** con control de acceso basado en roles (**Admin/Invitado**) y hashing de contraseñas con **BCrypt**.
-- **Base de Datos:** PostgreSQL alojado en [Neon](https://neon.tech) con más de 900 ejercicios precargados.
-- **Optimización de Rendimiento:** Endpoint principal optimizado para servir grandes volúmenes de datos con tiempos de respuesta mínimos.
-- **Documentación Dinámica:** Swagger/OpenAPI enriquecido con comentarios XML para una integración fluida con clientes.
-- **Despliegue Profesional:** Dockerizado y desplegado en la nube mediante **Render**.
+### 🔄 Flujo de datos
 
+Cliente → API → Cache (Blob Storage) → Base de datos (fallback) 
+✔ Reduce carga en DB 
+✔ Mejora tiempos de respuesta 
+✔ Mantiene consistencia mediante invalidación de cache 
 
-## 📦 Tecnologías
-- **Core:** .NET 9 & ASP.NET Core.
-- **Persistencia:** Entity Framework Core (PostgreSQL).
-- **Seguridad:** Microsoft.AspNetCore.Authentication.JwtBearer.
-- **Infraestructura:** Docker & Render.
+## 📱 Ecosistema 
 
-## 📁 Estructura del Proyecto (Vertical Slicing)
-La lógica está organizada por **Features**, permitiendo que cada funcionalidad sea independiente y escalable:
-```text
-src/
-├── Domain/           # Entidades puras (Ejercicio, Rutina, Usuario)
-├── Infrastructure/   # Persistencia (DbContext), Migraciones y Seguridad (JwtProvider)
-└── Features/         # Rebanadas verticales (Slice)
-    ├── Usuarios/     # Login, Roles, AuthController, UsuarioService
-    ├── Ejercicios/   # Listado y CRUD de ejercicios
-    └── Rutinas/      # Gestión de planes de entrenamiento
-```
-
-## 🌐 API en producción
-La API ya se encuentra desplegada y funcionando en Render. Puedes probarla directamente sin necesidad de clonar el repositorio:
-Nota: Los métodos de consulta (GET) son públicos. Los métodos de modificación (POST, PUT, DELETE) requieren autorización mediante encabezado Authorization: Bearer <token>.
-
-**📚 Swagger disponible en:** https://anotadorgymappapi.onrender.com
-💡 Puedes probar la API directamente desde Swagger utilizando el endpoint `/api/auth/login/invitado`.
+API utilizada por: 
+🌐 Web App (React + TypeScript) → panel administrativo
+📱 Mobile App (.NET MAUI) → modo offline-first con SQLite
 
 ## 🔐 Autenticación
 
-La API utiliza autenticación mediante JWT (Bearer Token).
-Existen dos formas de obtener un token:
+JWT Bearer Token con dos modos: 
+- **Admin**: acceso completo (CRUD)
+- **Invitado**: solo lectura
 
-### 👤 Login como usuario (Admin)
-Permite acceso completo (GET, POST, PATCH, DELETE)
-
-Endpoint: POST /api/auth/login
-
-```json
-{
-  "userName": "admin",
-  "password": "tu_password"
-}
+```Header:
+Authorization: Bearer <token>
 ```
 
-### 👀 Login como Invitado (sin credenciales)
+**📚 Swagger disponible en:** anotadorgym-api.azurewebsites.net 
+💡 Puedes probar la API directamente desde Swagger utilizando el endpoint /api/auth/login/invitado. 
 
-Permite acceder a los endpoints de solo lectura.
+## 📘 Ejemplo de endpoint 
 
-Endpoint: POST /api/auth/login/invitado
-
-No requiere body.
-
-Una vez obtenido el token, debe enviarse en el header:
-
-Authorization: Bearer <tu-token>
-
-### 🧪 Uso desde Swagger
-
-1. Ejecutar `/api/auth/login` o `/api/auth/login/invitado`
-2. Copiar el `tokenString` de la respuesta
-3. Hacer clic en **Authorize**
-4. Pegar **solo el token** (Swagger agrega automáticamente `Bearer`)
-
-## 📘 Endpoints principales
 ### 🔹GET /api/ejercicios
-Devuelve la lista completa de ejercicios.
+Devuelve catálogo completo de ejercicios optimizado con cache.
 
-- **Respuesta exitosa (200 OK):**
 ```json
 [
   {
@@ -119,151 +85,34 @@ Devuelve la lista completa de ejercicios.
 ]
 ```
 
-### 🔹POST /api/imports/validate
-multipart/form-data
-Valida la estructura de un archivo JSON sin guardarlo.
+## 🧱 Tecnologías 
 
-Parámetros:
+- .NET 9 / ASP.NET Core
+- Entity Framework Core
+- Azure SQL Database
+- Azure Blob Storage
+- JWT Authentication
+- GitHub Actions
 
-| Nombre | Tipo | Descripción
-|-----------|-------------|-------------|
-| **archivo**	| **IFormFile**	| **Archivo .json con ejercicios** |
+## 📁 Estructura del Proyecto (Vertical Slicing) 
 
-- **Respuesta (200 OK):**
-```json
-{
-  "esValido": true,
-  "cantidadEjercicios": 5,
-  "mensaje": "Formato válido. 5 ejercicios detectados"
-}
+La lógica está organizada por **Features**, permitiendo que cada funcionalidad sea independiente y escalable:
+
+```text
+src/
+├── Domain/           # Entidades puras (Ejercicio, Rutina, Usuario)
+├── Infrastructure/   # Persistencia (DbContext), Migraciones y Seguridad (JwtProvider)
+└── Features/         # Rebanadas verticales (Slice)
+    ├── Usuarios/     # Login, Roles, AuthController, UsuarioService
+    ├── Ejercicios/   # Listado y CRUD de ejercicios
+    └── Rutinas/      # Gestión de planes de entrenamiento
 ```
 
-### 🔹POST /api/imports
-multipart/form-data
-Importa y guarda ejercicios desde un archivo JSON.
+## 🌍 Deploy 
+Deploy automático a Azure App Service en cada push a main mediante GitHub Actions. 
 
-Parámetros:
-
-| Nombre | Tipo |	Descripción |
-|-----------|-------------|-------------|
-| **archivo**	| **IFormFile**	| **Archivo .json (máx 10 MB)** |
-
-- **Respuesta exitosa (201 Created):**
-```json
-{
-  "ejerciciosImportados": 5,
-  "ejerciciosOmitidos": 0,
-  "errores": [],
-  "mensaje": "Importación completada exitosamente"
-}
-```
-
-## 📁 Estructura del archivo JSON esperado
-```json
- [
-  {
-    "nombre": "Curl de Biceps con Barra Recta",
-    "grupoMuscular": {
-      "nombre": "Brazos"
-    },
-    "musculoPrimario": {
-      "nombre": "Biceps Braquial"
-    },
-    "musculosSecundarios": [
-      { "nombre": "Braquial" },
-      { "nombre": "Braquiorradial" },
-      { "nombre": "Flexores de la muñeca" }
-    ],
-    "descripcion": "Opcional"
-  }
-]
-```
-### Reglas:
-
-**Nombre:** obligatorio, único.
-
-**Descripcion:** opcional.
-
-## 🗄️ Base de datos
-La API utiliza **PostgreSQL** alojado en [Neon](https://neon.tech/). Actualmente la base de datos contiene más de **900 ejercicios** precargados para facilitar el desarrollo y las pruebas.
-
-La API está diseñada para utilizar una base de datos propia.
-Para pruebas rápidas, puedes utilizar la instancia desplegada en Render, que ya incluye datos precargados.
-
-## 📱 Ecosistema de Aplicaciones
-Esta API sirve como el motor principal para los siguientes clientes:
-
-WebApp Administrativa: Desarrollada en React + TypeScript, permite la gestión visual de los datos con soporte para temas (Dark/Light Mode) y rutas protegidas por roles.
-
-App Móvil Nativa: Desarrollada en .NET MAUI, utiliza esta API para poblar una base de datos local SQLite bajo una arquitectura Offline-first.
-[AnotadorGymApp](https://github.com/lisandrosemperez-collab/AnotadorGymApp)
-
-## 🔧 Configuración local
-
-### Prerrequisitos
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (opcional)
-- Git
-
-### Clonar y ejecutar
-```bash
-git clone https://github.com/lisandrosemperez-collab/AnotadorGymAppApi.git
-cd AnotadorGymAppApi
-dotnet restore
-dotnet run
-```
-La API estará disponible en http://localhost:5000 (por defecto).
-Swagger UI: http://localhost:5000/swagger
-
-## ⚙️ Configuración de variables de entorno
-
-La API requiere las siguientes variables para funcionar correctamente:
-
-| Variable                          | Descripción                                                                               | Ejemplo (desarrollo)                                                                 |
-|-----------------------------------|-------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
-| `ConnectionStrings__DefaultConnection` | Cadena de conexión a PostgreSQL. Debe ser proporcionada por el usuario (puede utilizar Neon u otro proveedor). | `Host=ep-mute-darkness-xxx.neon.tech;Database=neondb;Username=alice;Password=xxxx;SSL Mode=Require` |
-| `Jwt__Issuer`                     | Emisor del token JWT. Puede ser cualquier nombre, por ejemplo `"Admin"`.                 | `Admin`                                                                              |
-| `Jwt__Secret`                     | Clave secreta para firmar tokens (mínimo 16 caracteres). Usa una diferente en producción. | `MiClaveSuperSecretaParaDesarrollo123`                                               |
-
-**Importante:**  
-- No subas estos valores al repositorio.  
-- En **desarrollo**, puedes definirlas en `appsettings.json` (este archivo debe estar en `.gitignore`).
-- En **producción** (Render), configúralas desde el dashboard del servicio
-
-#### 🔹 Ejemplo de `appsettings.json`
-
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=AnotadorGym;Username=postgres;Password=tu_password"
-  },
-  "Jwt": {
-    "Issuer": "Admin",
-    "Secret": "MiClaveSuperSecretaParaDesarrollo123"
-  }
-}
-```
-
-## 🐳 Ejecutar con Docker
-```bash
-docker build -t anotador-api .
-docker run -d -p 5000:8080 -e PORT=8080 --name anotador-api anotador-api
-```
-Accede a http://localhost:5000/swagger
-
-## 🌍 Despliegue en Render
-
-Este repositorio está configurado para desplegarse automáticamente en Render mediante Docker:
-
-- Conecta tu repositorio de GitHub a Render.
-- Render detecta automáticamente el `Dockerfile`.
-- Configura las variables de entorno desde el dashboard.
-- El servicio se expone mediante una URL pública.
-
-## ✉️ Soporte y Contacto
-
-Este proyecto es mantenido activamente por **Lisandro Semperez**.
-- **📫 Contacto profesional**: [LinkedIn](https://www.linkedin.com/in/lisandro-semperez-24b1782b8/) | [Email](mailto:lisandrosemperez@gmail.com)
+## ✉️ Contacto 
+- **📫 Contacto profesional**: [LinkedIn](https://www.linkedin.com/in/lisandro-semperez-24b1782b8/)
 - **🔗 GitHub**: [GitHub](https://github.com/lisandrosemperez-collab)
 
 ⭐ **Si este proyecto te resulta útil o interesante, ¡considera darle una estrella en GitHub!**
