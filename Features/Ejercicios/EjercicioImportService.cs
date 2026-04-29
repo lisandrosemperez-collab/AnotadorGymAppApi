@@ -120,31 +120,40 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 await appDbContext.SaveChangesAsync();
 
                 _logger.LogInformation($"Procesando {ejerciciosJson.Count} ejercicios");                
+                
+                var strategy = appDbContext.Database.CreateExecutionStrategy();
 
-                await using var transaction = await appDbContext.Database.BeginTransactionAsync();
+                var ejerciciosDb = await appDbContext.Ejercicios
+                .Include(e => e.MusculosSecundarios)
+                .AsNoTracking()
+                .ToDictionaryAsync(e => e.Nombre.ToLower(), e => e);
 
-                try
+                await strategy.ExecuteAsync(async () =>
                 {
-                    var ejerciciosDb = await appDbContext.Ejercicios
-                    .Include(e => e.MusculosSecundarios)
-                    .AsNoTracking()
-                    .ToDictionaryAsync(e => e.Nombre.ToLower(), e => e);
-
-                    await ProcesarEjerciciosAsync(
-                        ejerciciosJson, gruposMuscularesDict, musculosDict, resultado, ejerciciosDb);
-                    
-                    await transaction.CommitAsync();
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    _logger.LogError(ex, "Error fatal en la transacción principal");
-                    resultado.Errores.Add(new ImportErrorDTO
+                    using var transaction = await appDbContext.Database.BeginTransactionAsync();
+                    try
                     {
-                        Mensaje = $"Error fatal: {ex.Message}",
-                        StackTrace = ex.StackTrace
-                    });
-                }
+
+
+                        await ProcesarEjerciciosAsync(
+                            ejerciciosJson, gruposMuscularesDict, musculosDict, resultado, ejerciciosDb);
+
+                        await appDbContext.SaveChangesAsync();
+
+                        await transaction.CommitAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        _logger.LogError(ex, "Error fatal en la transacción principal");
+                        resultado.Errores.Add(new ImportErrorDTO
+                        {
+                            Mensaje = $"Error fatal: {ex.Message}",
+                            StackTrace = ex.StackTrace
+                        });
+                        throw;
+                    }
+                });
 
             }
             catch (Exception ex)
@@ -311,8 +320,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             {
                 await using var individualTransaction = await appDbContext.Database.BeginTransactionAsync();
                 try
-                {
-                    // Limpiar el contexto para empezar fresco
+                {                    
                     appDbContext.ChangeTracker.Clear();
 
                     // Volver a agregar solo este ejercicio
