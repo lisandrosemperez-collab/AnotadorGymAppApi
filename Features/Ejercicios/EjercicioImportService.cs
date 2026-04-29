@@ -3,9 +3,9 @@ using AnotadorGymAppApi.Features.Common.Results;
 using AnotadorGymAppApi.Features.Common.Validation;
 using AnotadorGymAppApi.Features.Ejercicios.DTOs;
 using AnotadorGymAppApi.Infrastructure.Context;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Npgsql;
 using System.Text.Json;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -517,21 +517,21 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         }
         private string ObtenerMensajeErrorDb(DbUpdateException dbEx)
         {
-            if (dbEx.InnerException is PostgresException pgEx)
+            if (dbEx.InnerException is SqlException sqlEx)
             {
-                switch (pgEx.SqlState)
+                switch (sqlEx.Number)
                 {
-                    case "23505": // Violación de unicidad
-                        return $"Violación de unicidad en {pgEx.ConstraintName}: {pgEx.MessageText}";
-                    case "23503": // Violación de clave foránea
-                        return $"Clave foránea no encontrada: {pgEx.ConstraintName}";
-                    case "23514": // Violación de check constraint
-                        return $"Restricción check violada: {pgEx.ConstraintName}";
+                    case 2627: // Unique constraint
+                    case 2601:
+                        return "Violación de unicidad (registro duplicado)";
+
+                    case 547: // Foreign key
+                        return "Violación de clave foránea (relación inválida)";
+
                     default:
-                        return $"Error PostgreSQL ({pgEx.SqlState}): {pgEx.MessageText}";
+                        return $"SQL Server error ({sqlEx.Number}): {sqlEx.Message}";
                 }
             }
-
             return dbEx.Message;
         }
         private void AgregarError(int indice,string? nombreEjercicio,string mensaje,ImportResultDTO resultado,string? stackTrace = null)
