@@ -49,6 +49,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 }                
 
                 resultado = await ImportarEjerciciosDesdeJsonAsync(datos.Data);
+
                 resultado.Duracion = DateTime.UtcNow - inicio;
 
                 return resultado;
@@ -119,6 +120,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
                 await appDbContext.SaveChangesAsync();
 
+
                 _logger.LogInformation($"Procesando {ejerciciosJson.Count} ejercicios");                
                 
                 var strategy = appDbContext.Database.CreateExecutionStrategy();
@@ -133,8 +135,6 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     using var transaction = await appDbContext.Database.BeginTransactionAsync();
                     try
                     {
-
-
                         await ProcesarEjerciciosAsync(
                             ejerciciosJson, gruposMuscularesDict, musculosDict, resultado, ejerciciosDb);
 
@@ -316,8 +316,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                         Dictionary<string, Ejercicio> todosEjercicios)
         {
             foreach (var (ejercicio, indiceOriginal) in batch)
-            {
-                await using var individualTransaction = await appDbContext.Database.BeginTransactionAsync();
+            {                
                 try
                 {                    
                     appDbContext.ChangeTracker.Clear();
@@ -326,16 +325,14 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     appDbContext.Ejercicios.Add(ejercicio);
 
                     // ✅ GUARDAR SOLO ESTE EJERCICIO
-                    await appDbContext.SaveChangesAsync();
-                    await individualTransaction.CommitAsync();
+                    await appDbContext.SaveChangesAsync();                    
 
                     resultado.EjerciciosCreados++;
 
                     _logger.LogDebug($"Ejercicio creado individualmente: {ejercicio.Nombre}");
                 }
                 catch (DbUpdateException dbEx)
-                {
-                    await individualTransaction.RollbackAsync();                    
+                {                    
                     var mensajeError = ObtenerMensajeErrorDb(dbEx);
 
                     _logger.LogError(dbEx,
