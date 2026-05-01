@@ -2,6 +2,7 @@
 using AnotadorGymAppApi.Features.Common.Results;
 using AnotadorGymAppApi.Features.Common.Validation;
 using AnotadorGymAppApi.Features.Ejercicios.DTOs;
+using AnotadorGymAppApi.Infrastructure.Cache;
 using AnotadorGymAppApi.Infrastructure.Context;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -18,11 +19,13 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         private readonly AppDbContext appDbContext;
         private readonly ILogger<EjercicioImportService> _logger;
         private readonly IJsonFileValidator _jsonFileValidator;
-        public EjercicioImportService(AppDbContext appDbContext,ILogger<EjercicioImportService> logger, IJsonFileValidator jsonFileValidator)
+        private readonly ICacheService _cacheService;
+        public EjercicioImportService(AppDbContext appDbContext, ILogger<EjercicioImportService> logger, IJsonFileValidator jsonFileValidator, ICacheService cacheService)
         {
             this.appDbContext = appDbContext;
             _logger = logger;
             _jsonFileValidator = jsonFileValidator;
+            _cacheService = cacheService;
         }
 
         public async Task<ImportResultDTO> ImportarEjerciciosDesdeArchivoAsync(IFormFile archivo)
@@ -157,6 +160,8 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                         await appDbContext.SaveChangesAsync();
 
                         await transaction.CommitAsync();
+
+                        await _cacheService.DeleteAsync("Ejercicios.json");
                     }
                     catch (Exception ex)
                     {
