@@ -105,6 +105,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 _logger.LogInformation($"Procesando {gruposMuscularesJson.Count} grupos musculares");
 
                 var gruposMuscularesDb = await appDbContext.GrupoMusculares
+                    .AsNoTracking()
                     .ToDictionaryAsync(x => Normalizar(x.Nombre), x => x.GrupoMuscularId);
 
                 var gruposMuscularesDict = ProcesarGruposMuscularesAsync(
@@ -115,7 +116,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 await appDbContext.SaveChangesAsync();
 
                 
-                gruposMuscularesDict = await appDbContext.GrupoMusculares
+                gruposMuscularesDict = await appDbContext.GrupoMusculares.AsNoTracking()
                     .ToDictionaryAsync(x => x.Nombre.ToLower(), x => x.GrupoMuscularId);
 
                 #endregion
@@ -125,13 +126,14 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 _logger.LogInformation($"Procesando {musculosJson.Count} músculos");
                 
                 var musculosDb = await appDbContext.Musculos                    
+                    .AsNoTracking()
                     .ToDictionaryAsync(m => Normalizar(m.Nombre), m => m.MusculoId);
                 
                 var musculosDict = ProcesarMusculosAsync(musculosJson, resultado, musculosDb);
 
                 await appDbContext.SaveChangesAsync();
 
-                musculosDict = await appDbContext.Musculos
+                musculosDict = await appDbContext.Musculos.AsNoTracking()
                     .ToDictionaryAsync(m => Normalizar(m.Nombre), m => m.MusculoId);
 
                 #endregion
@@ -141,7 +143,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 var strategy = appDbContext.Database.CreateExecutionStrategy();
 
                 // Cargar ejercicios existentes en un diccionario SOLO PARA VALIDACIÓN rápida
-                var ejerciciosDb = await appDbContext.Ejercicios                                        
+                var ejerciciosDb = await appDbContext.Ejercicios.AsNoTracking()
                     .ToDictionaryAsync(e => e.Nombre.ToLower(), e => e);
 
                 await strategy.ExecuteAsync(async () =>
