@@ -263,8 +263,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                         nuevoEjercicio, gruposMuscularesDict, musculosDict, i, importResult);
 
 
-                    ejerciciosValidados.Add((nuevoEjercicio, i));                                        
-                    ejerciciosDb[nombreNormalizado] = nuevoEjercicio;
+                    ejerciciosValidados.Add((nuevoEjercicio, i));                                                            
 
                     _logger.LogDebug($"Ejercicio {ejercicioJson.Nombre} pasó todas las validaciones");
                     
@@ -286,9 +285,10 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 {
                     // Agregar todos los ejercicios del batch al contexto
                     foreach (var (ejercicio, indiceOriginal) in batch)
-                    {                        
+                    {
+                        ejercicio.EjercicioId = 0;
                         appDbContext.Ejercicios.Add(ejercicio);
-                    }
+                    }                    
 
                     // ✅ INTENTAR GUARDAR EL BATCH
                     await appDbContext.SaveChangesAsync();
@@ -323,6 +323,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 {
                     // Antes de guardar, validamos nuevamente el ejercicio para asegurarnos de que no haya problemas de integridad referencial o duplicados
                     appDbContext.ChangeTracker.Clear();
+                    ejercicio.EjercicioId = 0;
 
                     foreach (var musculo in ejercicio.MusculosSecundarios)
                     {
