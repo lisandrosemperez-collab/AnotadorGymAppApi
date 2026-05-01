@@ -202,7 +202,14 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
             var nombresExistentes = new HashSet<string>(
                 ejerciciosDb.Keys.Select(Normalizar),
-                StringComparer.OrdinalIgnoreCase);
+                StringComparer.OrdinalIgnoreCase);                      
+
+            var musculosInstanciasDic = musculosDict.Values
+                .ToDictionary(id => id, id => {
+                    var m = new Musculos { MusculoId = id };
+                    appDbContext.Musculos.Attach(m);
+                    return m;
+            });          
 
             for (int i = 0; i < ejerciciosJson.Count; i++)
             {
@@ -276,7 +283,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     // Crear nuevo ejercicio
                     var nuevoEjercicio = CrearNuevoEjercicioAsync(
                         ejercicioJson, grupoMuscularId, musculoPrimarioId,
-                        musculosDict);                    
+                        musculosInstanciasDic,musculosDict);
 
                     nombresExistentes.Add(nombreNormalizado);
 
@@ -320,9 +327,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                         _logger.LogError($"DUPLICADO EN BATCH: {dup.Key} ({dup.Count()} veces)");
                     }
 
-                    await appDbContext.SaveChangesAsync();
-
-                    appDbContext.ChangeTracker.Clear();
+                    await appDbContext.SaveChangesAsync();                    
 
                     ejerciciosCreadosEnLote += batch.Count;
                     importResult.EjerciciosCreados += batch.Count;
@@ -383,13 +388,15 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 }
             }
         }
-        private Ejercicio CrearNuevoEjercicioAsync(EjercicioDTO ejercicioJson, int GrupoMuscularId, int MusculoPrimarioId, Dictionary<string, int> musculosDict)
+        private Ejercicio CrearNuevoEjercicioAsync(EjercicioDTO ejercicioJson, int GrupoMuscularId, int musculoPrimarioId, 
+            Dictionary<int, Musculos> musculosInstanciasDic, Dictionary<string,int> musculosDict)
         {
             var nuevoEjercicio = new Ejercicio
             {
                 Nombre = ejercicioJson.Nombre,                
                 GrupoMuscularId = GrupoMuscularId,
-                MusculoPrimarioId = MusculoPrimarioId
+                MusculoPrimarioId = musculoPrimarioId,
+                MusculosSecundarios = new List<Musculos>()
             };
 
             var musculosSecundariosIds = new HashSet<int>();
@@ -399,22 +406,23 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 foreach (var musculoSec in ejercicioJson.MusculosSecundarios!
                         .Where(ms => !string.IsNullOrWhiteSpace(ms.Nombre)))
                 {
-                    var nombreMusculoSec = Normalizar(musculoSec.Nombre!);
+                    var nombreNormalizado = Normalizar(musculoSec.Nombre!);
 
-                    if (musculosDict.TryGetValue(nombreMusculoSec, out var musculoSecId))
+                    // Buscamos el ID usando el nombre que viene del JSON
+                    if (musculosDict.TryGetValue(nombreNormalizado, out var musculoSecId))
                     {
-
-                        if (musculoSecId != MusculoPrimarioId &&
-                            !musculosSecundariosIds.Contains(musculoSecId))
+                        // Verificamos que no sea el primario (evitar redundancia)
+                        if (musculoSecId != musculoPrimarioId)
                         {
-
-                            nuevoEjercicio.MusculosSecundarios.Add(
-                                new Musculos { MusculoId = musculoSecId }
-                            );
-
-                            musculosSecundariosIds.Add(musculoSecId);
+                            // Obtenemos la INSTANCIA ÚNICA para ese ID
+                            if (musculosInstanciasDic.TryGetValue(musculoSecId, out var instanciaTrackeada))
+                            {
+                                // Agregamos el objeto que EF ya conoce
+                                nuevoEjercicio.MusculosSecundarios.Add(instanciaTrackeada);
+                                musculosSecundariosIds.Add(musculoSecId);
+                            }
                         }
-                    }
+                    }                    
                 }
             }            
             return nuevoEjercicio;
