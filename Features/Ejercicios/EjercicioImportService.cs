@@ -103,13 +103,20 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 #region //Procesar grupos musculares
 
                 _logger.LogInformation($"Procesando {gruposMuscularesJson.Count} grupos musculares");
-                
-                var gruposMuscularesDb = await appDbContext.GrupoMusculares                    
-                    .ToDictionaryAsync(m => m.Nombre.ToLower(), m => m);
 
-                var gruposMuscularesDict = ProcesarGruposMuscularesAsync(gruposMuscularesJson, resultado,gruposMuscularesDb);
+                var gruposMuscularesDb = await appDbContext.GrupoMusculares
+                    .ToDictionaryAsync(x => Normalizar(x.Nombre), x => x.GrupoMuscularId);
+
+                var gruposMuscularesDict = ProcesarGruposMuscularesAsync(
+                    gruposMuscularesJson,
+                    resultado,
+                    gruposMuscularesDb);
 
                 await appDbContext.SaveChangesAsync();
+
+                
+                gruposMuscularesDict = await appDbContext.GrupoMusculares
+                    .ToDictionaryAsync(x => x.Nombre.ToLower(), x => x.GrupoMuscularId);
 
                 #endregion
 
@@ -118,11 +125,14 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 _logger.LogInformation($"Procesando {musculosJson.Count} músculos");
                 
                 var musculosDb = await appDbContext.Musculos                    
-                    .ToDictionaryAsync(m => m.Nombre.ToLower(), m => m);
+                    .ToDictionaryAsync(m => Normalizar(m.Nombre), m => m.MusculoId);
                 
                 var musculosDict = ProcesarMusculosAsync(musculosJson, resultado, musculosDb);
 
                 await appDbContext.SaveChangesAsync();
+
+                musculosDict = await appDbContext.Musculos
+                    .ToDictionaryAsync(m => Normalizar(m.Nombre), m => m.MusculoId);
 
                 #endregion
 
@@ -178,7 +188,9 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
             return resultado;
         }
-        private async Task ProcesarEjerciciosAsync(List<EjercicioDTO> ejerciciosJson, Dictionary<string, GrupoMuscular> gruposMuscularesDict, Dictionary<string, Musculos> musculosDict, ImportResultDTO importResult, Dictionary<string, Ejercicio> ejerciciosDb)
+        private async Task ProcesarEjerciciosAsync(List<EjercicioDTO> ejerciciosJson, 
+            Dictionary<string, int> gruposMuscularesDict, Dictionary<string, int> musculosDict, 
+            ImportResultDTO importResult, Dictionary<string, Ejercicio> ejerciciosDb)
         {
             int batchSize = 100;
             int ejerciciosCreadosEnLote = 0;
@@ -233,16 +245,17 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
                     // Buscar grupo muscular
                     if (!gruposMuscularesDict.TryGetValue(Normalizar(ejercicioJson.GrupoMuscular.Nombre!),
-                        out var grupoMuscular))
+                        out var grupoMuscularId))
                     {
                         AgregarError(i, ejercicioJson.Nombre,
                             $"Grupo muscular '{ejercicioJson.GrupoMuscular}' no encontrado",
                             importResult);
                         continue;
                     }
+
                     // Buscar musculo primario
                     if (!musculosDict.TryGetValue(Normalizar(ejercicioJson.MusculoPrimario!.Nombre!),
-                        out var musculoPrimario))
+                        out var musculoPrimarioId))
                     {
                         AgregarError(i, ejercicioJson.Nombre,
                             $"Músculo primario '{ejercicioJson.MusculoPrimario.Nombre}' no encontrado",
@@ -262,7 +275,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
                     // Crear nuevo ejercicio
                     var nuevoEjercicio = CrearNuevoEjercicioAsync(
-                        ejercicioJson, grupoMuscular, musculoPrimario,
+                        ejercicioJson, grupoMuscularId, musculoPrimarioId,
                         musculosDict);                    
 
                     nombresExistentes.Add(nombreNormalizado);
@@ -323,15 +336,13 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     _logger.LogWarning(dbEx,$"Error al guardar batch {batchIndex / batchSize + 1}. Guardando ejercicios individualmente...");                    
 
                     await GuardarEjerciciosIndividualmenteAsync(
-                        batch, importResult, gruposMuscularesDict, musculosDict);
+                        batch, importResult);
                 }
             }            
         }
         private async Task GuardarEjerciciosIndividualmenteAsync(
                         List<(Ejercicio Ejercicio, int IndiceOriginal)> batch,
-                        ImportResultDTO resultado,
-                        Dictionary<string, GrupoMuscular> gruposMuscularesDict,
-                        Dictionary<string, Musculos> musculosDict)
+                        ImportResultDTO resultado)
         {
             foreach (var (ejercicio, indiceOriginal) in batch)
             {                
@@ -340,15 +351,6 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     // Antes de guardar, validamos nuevamente el ejercicio para asegurarnos de que no haya problemas de integridad referencial o duplicados
                     appDbContext.ChangeTracker.Clear();
                     ejercicio.EjercicioId = 0;
-
-                    foreach (var musculo in ejercicio.MusculosSecundarios)
-                    {
-                        appDbContext.Attach(musculo);
-                    }
-
-                    appDbContext.Attach(ejercicio.GrupoMuscular!);
-                    appDbContext.Attach(ejercicio.MusculoPrimario!);
-
 
                     // Volver a agregar solo este ejercicio
                     appDbContext.Ejercicios.Add(ejercicio);
@@ -381,15 +383,13 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 }
             }
         }
-        private Ejercicio CrearNuevoEjercicioAsync(EjercicioDTO ejercicioJson, GrupoMuscular grupoMuscular, Musculos musculoPrimario, Dictionary<string, Musculos> musculosDict)
+        private Ejercicio CrearNuevoEjercicioAsync(EjercicioDTO ejercicioJson, int GrupoMuscularId, int MusculoPrimarioId, Dictionary<string, int> musculosDict)
         {
             var nuevoEjercicio = new Ejercicio
             {
-                Nombre = ejercicioJson.Nombre,
-                Descripcion = ejercicioJson.Descripcion ??
-                         $"Ejercicio para {musculoPrimario.Nombre}",
-                GrupoMuscularId = grupoMuscular.GrupoMuscularId,
-                MusculoPrimarioId = musculoPrimario.MusculoId,                
+                Nombre = ejercicioJson.Nombre,                
+                GrupoMuscularId = GrupoMuscularId,
+                MusculoPrimarioId = MusculoPrimarioId
             };
 
             var musculosSecundariosIds = new HashSet<int>();
@@ -399,117 +399,82 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 foreach (var musculoSec in ejercicioJson.MusculosSecundarios!
                         .Where(ms => !string.IsNullOrWhiteSpace(ms.Nombre)))
                 {
-                    var nombreMusculoSec = musculoSec.Nombre!.Trim().ToLower();
+                    var nombreMusculoSec = Normalizar(musculoSec.Nombre!);
 
-                    if (musculosDict.TryGetValue(nombreMusculoSec, out var musculoSecObj))
+                    if (musculosDict.TryGetValue(nombreMusculoSec, out var musculoSecId))
                     {
 
-                        if (musculoSecObj.MusculoId != musculoPrimario.MusculoId &&
-                            !musculosSecundariosIds.Contains(musculoSecObj.MusculoId))
+                        if (musculoSecId != MusculoPrimarioId &&
+                            !musculosSecundariosIds.Contains(musculoSecId))
                         {
-                            nuevoEjercicio.MusculosSecundarios.Add(new Musculos
-                            {
-                                MusculoId = musculoSecObj.MusculoId
-                            });
 
-                            musculosSecundariosIds.Add(musculoSecObj.MusculoId);
+                            nuevoEjercicio.MusculosSecundarios.Add(
+                                new Musculos { MusculoId = musculoSecId }
+                            );
+
+                            musculosSecundariosIds.Add(musculoSecId);
                         }
                     }
                 }
             }            
             return nuevoEjercicio;
         }
-        private Dictionary<string, Musculos> ProcesarMusculosAsync(List<string> musculosJson, ImportResultDTO resultado, Dictionary<string, Musculos> musculosDb)
+        private Dictionary<string, int> ProcesarMusculosAsync(List<string> musculosJson, ImportResultDTO resultado, Dictionary<string, int> musculosDb)
         {
-            var MusculosDict = new Dictionary<string, Musculos>(StringComparer.OrdinalIgnoreCase);
+            var dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var nombre in musculosJson)
-            {
-                var musculoJsonLower = nombre.Trim().ToLower();
-                if (musculosDb.TryGetValue(musculoJsonLower, out var musculoExistente))
-                {
-                    MusculosDict[musculoJsonLower] = musculoExistente;
-                }
-            }
+            // cargar existentes
+            foreach (var kv in musculosDb)
+                dict[kv.Key] = kv.Value;
 
             var nombresNuevos = musculosJson
-                .Where(nombre => !MusculosDict.ContainsKey(nombre.ToLower()))
-                .ToList();
-
-            try
-            {
-                foreach (var nombreNuevo in nombresNuevos)
-                {
-                    var nuevoMusculo = new Musculos
-                    {
-                        Nombre = nombreNuevo
-                    };
-                    appDbContext.Musculos.Add(nuevoMusculo);
-                    MusculosDict[nombreNuevo.ToLower()] = nuevoMusculo;
-                    resultado.MusculosCreados++;
-                    _logger.LogDebug($"Creado musculo: {nuevoMusculo.Nombre}");
-                }
-            }
-            catch(Exception ex)
-            {
-                _logger.LogError(ex, "Error al crear nuevos músculos");
-                resultado.Errores.Add(new ImportErrorDTO
-                {
-                    Mensaje = "Error al crear nuevos músculos: " + ex.Message
-                });
-            }   
-
-            _logger.LogInformation($"Músculos procesados. Existentes: {musculosDb.Count}, Nuevos: {nombresNuevos.Count}");
-            
-            return MusculosDict;
-        }
-        private Dictionary<string,GrupoMuscular> ProcesarGruposMuscularesAsync(List<string> nombresGruposMusculares, ImportResultDTO resultado, Dictionary<string, GrupoMuscular> todosGruposMusculares)
-        {            
-            var musculosDict = new Dictionary<string, GrupoMuscular>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var nombre in nombresGruposMusculares)
-            {
-                var nombreLower = nombre.Trim().ToLower();
-                if (todosGruposMusculares.TryGetValue(nombreLower, out var grupoExistente))
-                {
-                    musculosDict[nombreLower] = grupoExistente;
-                }
-            }
-
-            var nombresNuevos = nombresGruposMusculares
-                .Where(nombre => !musculosDict.ContainsKey(nombre.ToLower()))
+                .Select(Normalizar)
+                .Where(n => !dict.ContainsKey(n))
                 .Distinct()
                 .ToList();
 
-            try
+            foreach (var nombre in nombresNuevos)
             {
-                foreach (var nombreNuevo in nombresNuevos)
+                var nuevo = new Musculos
                 {
-                    
-                    var nuevoGrupo = new GrupoMuscular
-                    {
-                        Nombre = nombreNuevo
-                    };                    
-                    appDbContext.GrupoMusculares.Add(nuevoGrupo);
-                    musculosDict[nombreNuevo.ToLower()] = nuevoGrupo;
-                    resultado.GruposMuscularesCreados++;
-                    _logger.LogDebug($"Creado grupo muscular: {nuevoGrupo.Nombre}");
-                }               
+                    Nombre = nombre
+                };
 
-            }catch (Exception ex)
-            {                
-                _logger.LogError(ex, "Error al crear nuevos grupos musculares");
-                resultado.Errores.Add(new ImportErrorDTO
-                {
-                    Mensaje = "Error al crear nuevos grupos musculares: " + ex.Message,
-                    StackTrace= ex.StackTrace,                    
+                appDbContext.Musculos.Add(nuevo);
 
-                });
+                resultado.MusculosCreados++;
+                _logger.LogDebug($"Creado musculo: {nombre}");
             }
 
-            _logger.LogInformation($"Grupos musculares procesados. Existentes: {todosGruposMusculares.Count}, Nuevos: {nombresNuevos.Count}");
-                        
-            return musculosDict;
+            return dict;
+        }
+        private Dictionary<string,int> ProcesarGruposMuscularesAsync(List<string> nombresGruposMusculares, ImportResultDTO resultado, Dictionary<string, int> gruposExistentes)
+        {
+            var dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            // cargar existentes
+            foreach (var kv in gruposExistentes)
+                dict[kv.Key] = kv.Value;
+
+            var nombresNuevos = nombresGruposMusculares
+                .Select(Normalizar)
+                .Where(n => !dict.ContainsKey(n))
+                .Distinct()
+                .ToList();
+
+            foreach (var nombre in nombresNuevos)
+            {
+                var nuevo = new GrupoMuscular
+                {
+                    Nombre = nombre
+                };
+
+                appDbContext.GrupoMusculares.Add(nuevo);
+
+                resultado.GruposMuscularesCreados++;
+            }
+
+            return dict;
         }        
         private bool ValidarEjercicioImport(EjercicioDTO ejercicioImport, int indice, ImportResultDTO resultado)
         {
