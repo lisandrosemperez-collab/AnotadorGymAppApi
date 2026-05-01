@@ -182,10 +182,13 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             int ejerciciosCreadosEnLote = 0;
             int totalProcesados = 0;
 
-
             var ejerciciosValidados = new List<(Ejercicio Ejercicio, int IndiceOriginal)>();
             var nombresProcesados = new HashSet<string>();
             var indicesDuplicados = new HashSet<int>();
+
+            var nombresExistentes = new HashSet<string>(
+                ejerciciosDb.Keys,
+                StringComparer.OrdinalIgnoreCase);
 
             for (int i = 0; i < ejerciciosJson.Count; i++)
             {
@@ -193,6 +196,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 if (!string.IsNullOrWhiteSpace(ejercicioJson.Nombre))
                 {
                     var nombreNormalizado = ejercicioJson.Nombre.Trim().ToLower();
+
                     if (nombresProcesados.Contains(nombreNormalizado))
                     {
                         indicesDuplicados.Add(i);
@@ -245,11 +249,13 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                             importResult);
                         continue;
                     }
-                    // Verificar si ya existe en BD (validación rápida con diccionario)
-                    if (ejerciciosDb.ContainsKey(nombreNormalizado))
+                    // Verificar si ya existe en BD (validación rápida con diccionario)                    
+
+                    if (nombresExistentes.Contains(nombreNormalizado))
                     {
                         importResult.EjerciciosOmitidos++;
                         _logger.LogDebug($"Ejercicio {ejercicioJson.Nombre} ya existe, se omite");
+                        
                         continue;
                     }
                     #endregion
@@ -257,11 +263,9 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     // Crear nuevo ejercicio
                     var nuevoEjercicio = CrearNuevoEjercicioAsync(
                         ejercicioJson, grupoMuscular, musculoPrimario,
-                        musculosDict);
+                        musculosDict);                    
 
-                    await ValidarEjercicioAntesDeGuardarAsync(
-                        nuevoEjercicio, gruposMuscularesDict, musculosDict, i, importResult);
-
+                    nombresExistentes.Add(nombreNormalizado);
 
                     ejerciciosValidados.Add((nuevoEjercicio, i));                                                            
 
@@ -556,85 +560,6 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 Mensaje = mensaje,
                 StackTrace = stackTrace
             });
-        }
-        private async Task ValidarEjercicioAntesDeGuardarAsync(
-                        Ejercicio ejercicio,
-                        Dictionary<string, GrupoMuscular> gruposMuscularesDict,
-                        Dictionary<string, Musculos> musculosDict,                        
-                        int indice,
-                        ImportResultDTO resultado)
-        {
-            try
-            {
-                // 1. Validar propiedades requeridas
-                if (string.IsNullOrWhiteSpace(ejercicio.Nombre))
-                    throw new InvalidOperationException("El nombre del ejercicio está vacío");
-
-                if (ejercicio.GrupoMuscularId <= 0)
-                    throw new InvalidOperationException("Grupo muscular no válido (ID menor o igual a 0)");
-
-                if (ejercicio.MusculoPrimarioId <= 0)
-                    throw new InvalidOperationException("Músculo primario no válido (ID menor o igual a 0)");
-
-                // 2. Validar que no exista duplicado en la base de datos (consulta directa para mayor seguridad)
-                var existeEnBD = await appDbContext.Ejercicios
-                    .AnyAsync(e => e.Nombre.ToLower() == ejercicio.Nombre.ToLower());
-
-                if (existeEnBD)
-                    throw new InvalidOperationException($"El ejercicio '{ejercicio.Nombre}' ya existe en la base de datos");
-
-                // 3. Validar que el grupo muscular exista en la base de datos
-                var grupoExiste = await appDbContext.GrupoMusculares
-                    .AnyAsync(g => g.GrupoMuscularId == ejercicio.GrupoMuscularId);
-
-                if (!grupoExiste)
-                    throw new InvalidOperationException($"El grupo muscular con ID {ejercicio.GrupoMuscularId} no existe");
-
-                // 4. Validar que el músculo primario exista en la base de datos
-                var musculoPrimarioExiste = await appDbContext.Musculos
-                    .AnyAsync(m => m.MusculoId == ejercicio.MusculoPrimarioId);
-
-                if (!musculoPrimarioExiste)
-                    throw new InvalidOperationException($"El músculo primario con ID {ejercicio.MusculoPrimarioId} no existe");
-
-                // 5. Validar músculos secundarios
-                foreach (var musculoSec in ejercicio.MusculosSecundarios)
-                {
-                    var musculoSecExiste = await appDbContext.Musculos
-                        .AnyAsync(m => m.MusculoId == musculoSec.MusculoId);
-
-                    if (!musculoSecExiste)
-                        throw new InvalidOperationException($"Músculo secundario con ID {musculoSec.MusculoId} no existe");
-
-                    // Validar que no sea el mismo que el primario
-                    if (musculoSec.MusculoId == ejercicio.MusculoPrimarioId)
-                        throw new InvalidOperationException($"El músculo secundario '{musculoSec.Nombre}' no puede ser el mismo que el primario");
-                }
-
-                // 6. Validar duplicados en secundarios
-                var idsSecundarios = ejercicio.MusculosSecundarios.Select(m => m.MusculoId).ToList();
-                if (idsSecundarios.Distinct().Count() != idsSecundarios.Count)
-                    throw new InvalidOperationException("Hay músculos secundarios duplicados");
-
-                // 7. Validar relaciones de navegación (si están cargadas)
-                if (ejercicio.GrupoMuscular != null && ejercicio.GrupoMuscular.GrupoMuscularId != ejercicio.GrupoMuscularId)
-                    throw new InvalidOperationException("Inconsistencia entre GrupoMuscularId y objeto GrupoMuscular");
-
-                if (ejercicio.MusculoPrimario != null && ejercicio.MusculoPrimario.MusculoId != ejercicio.MusculoPrimarioId)
-                    throw new InvalidOperationException("Inconsistencia entre MusculoPrimarioId y objeto MusculoPrimario");
-            }
-            catch (Exception ex)
-            {
-                // Registrar el error específico
-                resultado.Errores.Add(new ImportErrorDTO
-                {
-                    Indice = indice,
-                    NombreEjercicio = ejercicio.Nombre,
-                    Mensaje = $"Validación falló: {ex.Message}",
-                    StackTrace = ex.StackTrace
-                });
-                throw; // Re-lanzar para que el caller sepa
-            }
-        }
+        }        
     }
 }
