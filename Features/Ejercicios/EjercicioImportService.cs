@@ -97,38 +97,40 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
+
+                #region //Procesar grupos musculares
                 _logger.LogInformation($"Procesando {gruposMuscularesJson.Count} grupos musculares");
-
-
-                // Obtener todos los grupos musculares existentes
-                var gruposMuscularesDb = await appDbContext.GrupoMusculares
-                    .AsNoTracking()
-                    .ToDictionaryAsync(m => m.Nombre.ToLower(), m => m);
                 
-                // Procesar grupos musculares
+                var gruposMuscularesDb = await appDbContext.GrupoMusculares                    
+                    .ToDictionaryAsync(m => m.Nombre.ToLower(), m => m);
+
                 var gruposMuscularesDict = await ProcesarGruposMuscularesAsync(gruposMuscularesJson, resultado,gruposMuscularesDb);
 
                 await appDbContext.SaveChangesAsync();
 
+                #endregion
+
+                #region // Procesar musculos
+
                 _logger.LogInformation($"Procesando {musculosJson.Count} músculos");
                 
-                var musculosDb = await appDbContext.Musculos
-                .AsNoTracking()
-                .ToDictionaryAsync(m => m.Nombre.ToLower(), m => m);
-
+                var musculosDb = await appDbContext.Musculos                    
+                    .ToDictionaryAsync(m => m.Nombre.ToLower(), m => m);
+                
                 var musculosDict = await ProcesarMusculosAsync(musculosJson, resultado, musculosDb);
 
                 await appDbContext.SaveChangesAsync();
 
+                #endregion
 
                 _logger.LogInformation($"Procesando {ejerciciosJson.Count} ejercicios");                
                 
                 var strategy = appDbContext.Database.CreateExecutionStrategy();
 
-                var ejerciciosDb = await appDbContext.Ejercicios
-                .Include(e => e.MusculosSecundarios)
-                .AsNoTracking()
-                .ToDictionaryAsync(e => e.Nombre.ToLower(), e => e);
+                // Cargar ejercicios existentes en un diccionario SOLO PARA VALIDACIÓN rápida
+                var ejerciciosDb = await appDbContext.Ejercicios                    
+                    .AsNoTracking()
+                    .ToDictionaryAsync(e => e.Nombre.ToLower(), e => e);
 
                 await strategy.ExecuteAsync(async () =>
                 {
@@ -183,7 +185,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
             var ejerciciosValidados = new List<(Ejercicio Ejercicio, int IndiceOriginal)>();
             var nombresProcesados = new HashSet<string>();
-            var indicesDuplicados = new List<int>();
+            var indicesDuplicados = new HashSet<int>();
 
             for (int i = 0; i < ejerciciosJson.Count; i++)
             {
@@ -253,13 +255,12 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     #endregion
 
                     // Crear nuevo ejercicio
-                    var nuevoEjercicio = await CrearNuevoEjercicioAsync(
+                    var nuevoEjercicio = CrearNuevoEjercicioAsync(
                         ejercicioJson, grupoMuscular, musculoPrimario,
                         musculosDict);
 
                     await ValidarEjercicioAntesDeGuardarAsync(
-                        nuevoEjercicio, gruposMuscularesDict, musculosDict,
-                        ejerciciosDb, i, importResult);
+                        nuevoEjercicio, gruposMuscularesDict, musculosDict, i, importResult);
 
 
                     ejerciciosValidados.Add((nuevoEjercicio, i));                                        
@@ -285,12 +286,14 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 {
                     // Agregar todos los ejercicios del batch al contexto
                     foreach (var (ejercicio, indiceOriginal) in batch)
-                    {
+                    {                        
                         appDbContext.Ejercicios.Add(ejercicio);
                     }
 
                     // ✅ INTENTAR GUARDAR EL BATCH
                     await appDbContext.SaveChangesAsync();
+
+                    appDbContext.ChangeTracker.Clear();
 
                     ejerciciosCreadosEnLote += batch.Count;
                     importResult.EjerciciosCreados += batch.Count;
@@ -304,7 +307,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     _logger.LogWarning(dbEx,$"Error al guardar batch {batchIndex / batchSize + 1}. Guardando ejercicios individualmente...");
 
                     await GuardarEjerciciosIndividualmenteAsync(
-                        batch, importResult, gruposMuscularesDict, musculosDict, ejerciciosDb);
+                        batch, importResult, gruposMuscularesDict, musculosDict);
                 }
             }            
         }
@@ -312,14 +315,23 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                         List<(Ejercicio Ejercicio, int IndiceOriginal)> batch,
                         ImportResultDTO resultado,
                         Dictionary<string, GrupoMuscular> gruposMuscularesDict,
-                        Dictionary<string, Musculos> musculosDict,
-                        Dictionary<string, Ejercicio> todosEjercicios)
+                        Dictionary<string, Musculos> musculosDict)
         {
             foreach (var (ejercicio, indiceOriginal) in batch)
             {                
                 try
-                {                    
+                {
+                    // Antes de guardar, validamos nuevamente el ejercicio para asegurarnos de que no haya problemas de integridad referencial o duplicados
                     appDbContext.ChangeTracker.Clear();
+
+                    foreach (var musculo in ejercicio.MusculosSecundarios)
+                    {
+                        appDbContext.Attach(musculo);
+                    }
+
+                    appDbContext.Attach(ejercicio.GrupoMuscular!);
+                    appDbContext.Attach(ejercicio.MusculoPrimario!);
+
 
                     // Volver a agregar solo este ejercicio
                     appDbContext.Ejercicios.Add(ejercicio);
@@ -352,7 +364,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 }
             }
         }
-        private async Task<Ejercicio> CrearNuevoEjercicioAsync(EjercicioDTO ejercicioJson, GrupoMuscular grupoMuscular, Musculos musculoPrimario, Dictionary<string, Musculos> musculosDict)
+        private Ejercicio CrearNuevoEjercicioAsync(EjercicioDTO ejercicioJson, GrupoMuscular grupoMuscular, Musculos musculoPrimario, Dictionary<string, Musculos> musculosDict)
         {
             var nuevoEjercicio = new Ejercicio
             {
@@ -547,8 +559,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         private async Task ValidarEjercicioAntesDeGuardarAsync(
                         Ejercicio ejercicio,
                         Dictionary<string, GrupoMuscular> gruposMuscularesDict,
-                        Dictionary<string, Musculos> musculosDict,
-                        Dictionary<string, Ejercicio> ejerciciosDb,
+                        Dictionary<string, Musculos> musculosDict,                        
                         int indice,
                         ImportResultDTO resultado)
         {
