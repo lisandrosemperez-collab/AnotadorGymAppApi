@@ -32,6 +32,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 Nombre = e.Nombre,
                 EjercicioId = e.EjercicioId,
                 Descripcion = e.Descripcion,
+                UrlVideo = e.UrlVideo,
                 GrupoMuscular = e.GrupoMuscular == null
                     ? null
                     : new GrupoMuscularDTO
