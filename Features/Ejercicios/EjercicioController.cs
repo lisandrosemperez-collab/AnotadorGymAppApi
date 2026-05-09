@@ -385,17 +385,16 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         }
 
         /// <summary>
-        /// Sincroniza una lista de ejercicios enviados desde el cliente con la base de datos.
-        /// 
-        /// - Prioriza la actualización por EjercicioId.
-        /// - Si no existe EjercicioId, realiza fallback por Nombre normalizado.
-        /// - Actualiza campos: Nombre, Descripcion y UrlVideo.
-        /// - Devuelve un resumen con cantidad de registros actualizados y no encontrados.
-        /// 
-        /// Este endpoint está diseñado para procesos de importación o sincronización masiva de datos.
+        /// Sincroniza ejercicios con la base de datos.
         /// </summary>
+        /// <remarks>
+        /// - Prioriza actualización por EjercicioId.
+        /// - Si no existe, realiza fallback por Nombre normalizado.
+        /// - Actualiza: Nombre, Descripcion y UrlVideo.
+        /// - Diseñado para importación o sincronización masiva de datos.
+        /// </remarks>
         /// <param name="dtos">Lista de ejercicios a sincronizar.</param>
-        /// <returns>Resultado del proceso de sincronización con métricas de actualización.</returns>
+        /// <returns>Resumen del proceso de sincronización.</returns>
         [Authorize(Roles = "Admin")]
         [HttpPost("sincronizar")]
         public async Task<IActionResult> SincronizarEjercicios([FromBody] List<EjercicioSimpleDTO> dtos)
