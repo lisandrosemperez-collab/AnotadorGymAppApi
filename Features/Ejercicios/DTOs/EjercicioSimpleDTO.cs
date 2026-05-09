@@ -4,7 +4,8 @@
     {                        
         public string Nombre { get; set; } = string.Empty;
         public int EjercicioId { get; set; }
-        public string Descripcion { get; set; } = string.Empty;                        
+        public string Descripcion { get; set; } = string.Empty;
+        public string? UrlVideo { get; set; } = string.Empty;
         public EjercicioSimpleDTO() { }
     }
 }
