@@ -199,6 +199,8 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
             await appDbContext.SaveChangesAsync();                
 
+            await cacheService.DeleteAsync("Ejercicios.json");
+            
             return new EjercicioSimpleDTO
             {
                 EjercicioId = ejercicio.EjercicioId,
@@ -206,6 +208,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 Descripcion = ejercicio.Descripcion,
                 UrlVideo = ejercicio.UrlVideo
             };
+
 
         }
         public async Task<ActualizarResult> ActualizarEjerciciosAsync(List<EjercicioSimpleDTO> dtos)
@@ -275,6 +278,8 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             }
 
             await appDbContext.SaveChangesAsync();
+            
+            await cacheService.DeleteAsync("Ejercicios.json");
 
             return result;
         }
