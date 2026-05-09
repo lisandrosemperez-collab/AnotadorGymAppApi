@@ -119,6 +119,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             _logger.LogInformation("Solicitud de importación recibida. Archivo: {FileName}, Tamaño: {Size}", archivo?.FileName, archivo?.Length);
 
             var importResult = await _ejercicioImportService.ImportarEjerciciosDesdeArchivoAsync(archivo);
+
             if (importResult.FalloCritico == true) return BadRequest(new ProblemDetails
             {
                 Title = "Error crítico en la importación",
@@ -307,7 +308,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         /// <response code="403">Usuario autenticado sin permisos suficientes.</response>
         /// <response code="500">Error interno del servidor.</response>
         [Authorize(Roles = "Admin,Invitado")]
-        [HttpGet("todos")]
+        [HttpGet("exportar")]
         public async Task<ActionResult<IEnumerable<EjercicioDTO>>> GetEjercicios()
         {
             var (data, fromCache) = await _ejercicioService.GetAllEjercicios();
@@ -361,7 +362,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             return Ok(result);
         }
 
-        // DELETE protegido
+        
         [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Eliminar(int id)
@@ -373,7 +374,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             return NoContent();
         }
 
-        // PATCH protegido
+        
         [Authorize(Roles = "Admin")]
         [HttpPatch("{id}")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] EjercicioSimpleDTO dto)
@@ -381,6 +382,27 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             var ejercicio = await _ejercicioService.ActualizarEjercicioAsync(id, dto);
             if (ejercicio == null) return NotFound();
             return Ok(ejercicio);
+        }
+
+        /// <summary>
+        /// Sincroniza una lista de ejercicios enviados desde el cliente con la base de datos.
+        /// 
+        /// - Prioriza la actualización por EjercicioId.
+        /// - Si no existe EjercicioId, realiza fallback por Nombre normalizado.
+        /// - Actualiza campos: Nombre, Descripcion y UrlVideo.
+        /// - Devuelve un resumen con cantidad de registros actualizados y no encontrados.
+        /// 
+        /// Este endpoint está diseñado para procesos de importación o sincronización masiva de datos.
+        /// </summary>
+        /// <param name="dtos">Lista de ejercicios a sincronizar.</param>
+        /// <returns>Resultado del proceso de sincronización con métricas de actualización.</returns>
+        [Authorize(Roles = "Admin")]
+        [HttpPost("sincronizar")]
+        public async Task<IActionResult> SincronizarEjercicios([FromBody] List<EjercicioSimpleDTO> dtos)
+        {
+            var result = await _ejercicioService.ActualizarEjerciciosAsync(dtos);
+
+            return Ok(result);
         }
         private void AddPaginationHeaders(int totalCount, PaginationParams? pagination, bool fromCache, bool isEmpty)
         {

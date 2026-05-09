@@ -6,6 +6,8 @@ using AnotadorGymAppApi.Infrastructure.Context;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using AnotadorGymAppApi.Features.Common.Tools;
+using AnotadorGymAppApi.Features.Ejercicios.Results;
 
 namespace AnotadorGymAppApi.Features.Ejercicios
 {
@@ -186,26 +188,106 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
             return true;
         }
-        public async Task<EjercicioDTO> ActualizarEjercicioAsync(int id, EjercicioSimpleDTO dto)
+        public async Task<EjercicioSimpleDTO> ActualizarEjercicioAsync(int id, EjercicioSimpleDTO dto)
         {
-            if (dto.Nombre != null && string.IsNullOrWhiteSpace(dto.Nombre))
-                throw new ApplicationException("El nombre no puede estar vacío");
-
-            var query = appDbContext.Ejercicios
-                .Where(e => e.EjercicioId == id);
-
-            var ejercicio = await ProjectToDto(query)
-                .FirstOrDefaultAsync();
+            var ejercicio = await appDbContext.Ejercicios.FindAsync(id);
 
             if (ejercicio == null)
                 return null;
 
-            ejercicio.Nombre = dto.Nombre ?? ejercicio.Nombre;
-            ejercicio.Descripcion = dto.Descripcion ?? ejercicio.Descripcion;
+            AplicarActualizacion(ejercicio, dto);
+
+            await appDbContext.SaveChangesAsync();                
+
+            return new EjercicioSimpleDTO
+            {
+                EjercicioId = ejercicio.EjercicioId,
+                Nombre = ejercicio.Nombre,
+                Descripcion = ejercicio.Descripcion,
+                UrlVideo = ejercicio.UrlVideo
+            };
+
+        }
+        public async Task<ActualizarResult> ActualizarEjerciciosAsync(List<EjercicioSimpleDTO> dtos)
+        {
+            var result = new ActualizarResult();
+
+            var porId = dtos.Where(x => x.EjercicioId > 0).ToList();            
+
+            // MATCH POR ID (PRIORIDAD)
+
+            if (porId.Any())
+            {
+                var ids = porId.Select(x => x.EjercicioId).ToList();
+
+                var ejerciciosById = await appDbContext.Ejercicios
+                    .Where(x => ids.Contains(x.EjercicioId))
+                    .ToListAsync();
+
+                var dict = ejerciciosById.ToDictionary(x => x.EjercicioId);
+
+                foreach (var dto in porId)
+                {
+                    if (!dict.TryGetValue(dto.EjercicioId, out var ex))
+                    {
+                        result.NotFound++;
+                        continue;
+                    }                    
+                    
+                    AplicarActualizacion(ex, dto);
+                    result.UpdatedById++;                    
+                }
+            }
+
+            var porNombre = dtos.Where(x => x.EjercicioId == 0).ToList();
+
+            // FALLBACK POR NOMBRE
+            if (porNombre.Any())
+            {
+
+                var nombresNormalizados = porNombre
+                    .Select(x => StringNormalize.Normalize(x.Nombre))
+                    .ToList();
+
+                var ejerciciosByName = await appDbContext.Ejercicios                
+                    .ToListAsync();
+
+                ejerciciosByName = ejerciciosByName
+                    .Where(x => nombresNormalizados.Contains(StringNormalize.Normalize(x.Nombre)))
+                    .ToList();
+
+                var dictName = ejerciciosByName.ToDictionary(
+                    x => StringNormalize.Normalize(x.Nombre)
+                );
+
+                foreach (var dto in porNombre)
+                {
+                    var dtoName = StringNormalize.Normalize(dto.Nombre);
+                    
+                    if (!dictName.TryGetValue(dtoName, out var ejercicio))
+                    {
+                        result.NotFound++;
+                        continue;
+                    }                    
+                    AplicarActualizacion(ejercicio, dto);
+                    result.UpdatedByName++;
+                }
+            }
 
             await appDbContext.SaveChangesAsync();
 
-            return ejercicio;
+            return result;
+        }
+        private void AplicarActualizacion(Ejercicio ejercicio, EjercicioSimpleDTO dto)
+        {
+            if (!string.IsNullOrWhiteSpace(dto.Nombre))
+                ejercicio.Nombre = dto.Nombre;
+
+            if (!string.IsNullOrWhiteSpace(dto.Descripcion))
+                ejercicio.Descripcion = dto.Descripcion;
+
+            if (!string.IsNullOrWhiteSpace(dto.UrlVideo))
+                ejercicio.UrlVideo = dto.UrlVideo;
         }
 
         #endregion

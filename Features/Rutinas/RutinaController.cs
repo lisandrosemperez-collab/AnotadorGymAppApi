@@ -345,7 +345,7 @@ namespace AnotadorGymAppApi.Features.Rutinas
         [ProducesResponseType(typeof((List<RutinaDto> items, int totalCount)), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         [Authorize(Roles = "Admin,Invitado")]
-        [HttpGet]
+        [HttpGet("exportar")]
         public async Task<ActionResult<IEnumerable<RutinaDto>>> GetAllRutinas()
         {
             var rutinas = await _rutinaService.GetAllRutinas();
