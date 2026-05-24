@@ -1,16 +1,36 @@
 # 🏋️ Anotador Gym API 
+
+Backend cloud-native para gestión de entrenamiento físico, construido con ASP.NET Core, Docker y Microsoft Azure.
+
 [![.NET](https://img.shields.io/badge/.NET-9.0-purple)](https://dotnet.microsoft.com/) 
 [![Azure](https://img.shields.io/badge/Azure-Cloud-blue)](https://azure.microsoft.com/) 
+![Docker](https://img.shields.io/badge/Docker-Containerized-blue)
+![CI/CD](https://github.com/lisandrosemperez-collab/AnotadorGymAppApi/actions/workflows/.github/workflows/main_anotadorgym-api.yaml/badge.svg)
 ![Azure SQL](https://img.shields.io/badge/Azure%20SQL-Database-0078D4) 
 ![Blob Storage](https://img.shields.io/badge/Azure-Blob%20Storage-0089D6) 
-![CI/CD](https://img.shields.io/badge/GitHub%20Actions-CI/CD-black)
-
-API backend cloud-native para gestión de rutinas de entrenamiento, diseñada con arquitectura escalable y desplegada en Azure.
 
 ## 🚀 Overview
-Backend para una aplicación de fitness que gestiona ejercicios, rutinas y usuarios con control de acceso por roles.
+API Backend para una aplicación de fitness que gestiona ejercicios, rutinas y usuarios con control de acceso por roles.
 
-Diseñada para alto volumen de lectura, escalabilidad horizontal y despliegue en cloud.
+Desplegada en Microsoft Azure usando App Service for Containers, Azure Container Registry y GitHub Actions CI/CD.
+
+## 🛠️ Stack Tecnologico
+
+### Backend
+- ASP.NET Core 9
+- Entity Framework Core
+- SQL Server
+- JWT Authentication
+
+### Cloud & DevOps
+- Microsoft Azure
+- Azure App Service
+- Azure Container Registry
+- Azure Blob Storage
+- GitHub Actions
+- Docker
+
+---
 
 ## 🧠 Arquitectura 
 - **Pattern**: Vertical Slice (Features-based)
@@ -18,35 +38,79 @@ Diseñada para alto volumen de lectura, escalabilidad horizontal y despliegue en
 - **Separación**: Domain / Infrastructure / Features
 - **Enfoque**: Cloud-native + 12-factor app
 
+---
+
 ## ☁️ Infraestructura
-- **Azure App Service** → Hosting de la API 
+- **Azure App Service (Linux Containers)** → Hosting de la API
+- **Azure Container Registry (ACR)** → Registro privado de imágenes Docker
 - **Azure SQL Database** → Persistencia principal
 - **Azure Blob Storage** → Cache distribuido
-- **GitHub Actions** → CI/CD automático (build + deploy)
+- **GitHub Actions** → Pipeline CI/CD automatizado
 
-## ⚡ Features clave 
-- 🔐 **Autenticación JWT** con roles (Admin / Invitado)
-- ⚡ **Cache distribuido** con **Blob Storage**
-- - Mejora de performance en endpoints de alta carga
-- - Headers X-Cache: HIT/MISS
-- - Invalidación automática en escrituras
-🔄 **CI/CD completo**
-- - Build automático
-- - Deploy directo a Azure
-- 📊 +900 ejercicios precargados optimizados para lectura
+---
+
+## 🔄 CI/CD
+
+Cada push a la rama `main` ejecuta automáticamente:
+
+1. Checkout del repositorio
+2. Login federado contra Azure (OIDC)
+3. Build de la API
+4. Build de imagen Docker
+5. Push a Azure Container Registry
+6. Deploy automático a Azure App Service
+
+---
+
+## 🐳 Docker & Containers
+
+La aplicación se ejecuta completamente containerizada mediante Docker.
+
+El flujo de despliegue incluye:
+
+1. Build de imagen Docker
+2. Push automático a Azure Container Registry
+3. Deploy automático a Azure App Service
+
+---
+
+## ⚡ Features Principales 
+
+- 🔐 Autenticación JWT con roles (`Admin` / `Invitado`)
+- ⚡ Cache distribuido utilizando Azure Blob Storage
+- 📦 API completamente containerizada con Docker
+- 🔄 CI/CD automatizado con GitHub Actions
+- ☁️ Infraestructura desplegada en Microsoft Azure
+- 📊 Más de 900 ejercicios optimizados para lectura
+- 🚀 Optimización de endpoints de alta demanda
+- 🧠 Invalidación automática de cache
+- 📈 Headers `X-Cache: HIT/MISS` para monitoreo
 
 ### 🔄 Flujo de datos
 
-Cliente → API → Cache (Blob Storage) → Base de datos (fallback) 
-✔ Reduce carga en DB 
-✔ Mejora tiempos de respuesta 
-✔ Mantiene consistencia mediante invalidación de cache 
+```txt
+Cliente
+   ↓
+API ASP.NET Core
+   ↓
+Cache Distribuido (Blob Storage)
+   ↓
+Azure SQL Database (fallback)
+```
+
+---
 
 ## 📱 Ecosistema 
 
 API utilizada por: 
-🌐 Web App (React + TypeScript) → panel administrativo
-📱 Mobile App (.NET MAUI) → modo offline-first con SQLite
+
+- 🌐 Web App (React + TypeScript)
+  - Panel administrativo
+
+- 📱 Mobile App (.NET MAUI + SQLite)
+  - Estrategia offline-first
+
+---
 
 ## 🔐 Autenticación
 
@@ -54,12 +118,15 @@ JWT Bearer Token con dos modos:
 - **Admin**: acceso completo (CRUD)
 - **Invitado**: solo lectura
 
-```Header:
+```http:
 Authorization: Bearer <token>
 ```
 
-**📚 Swagger disponible en:** anotadorgym-api.azurewebsites.net 
+**📚 Swagger disponible en:** [anotadorgym-api.azurewebsites.net](https://anotadorgym-api.azurewebsites.net)
+
 💡 Puedes probar la API directamente desde Swagger utilizando el endpoint /api/auth/login/invitado. 
+
+---
 
 ## 📘 Ejemplo de endpoint 
 
@@ -85,14 +152,7 @@ Devuelve catálogo completo de ejercicios optimizado con cache.
 ]
 ```
 
-## 🧱 Tecnologías 
-
-- .NET 9 / ASP.NET Core
-- Entity Framework Core
-- Azure SQL Database
-- Azure Blob Storage
-- JWT Authentication
-- GitHub Actions
+---
 
 ## 📁 Estructura del Proyecto (Vertical Slicing) 
 
@@ -108,8 +168,7 @@ src/
     └── Rutinas/      # Gestión de planes de entrenamiento
 ```
 
-## 🌍 Deploy 
-Deploy automático a Azure App Service en cada push a main mediante GitHub Actions. 
+---
 
 ## ✉️ Contacto 
 - **📫 Contacto profesional**: [LinkedIn](https://www.linkedin.com/in/lisandro-semperez-24b1782b8/)
