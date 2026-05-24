@@ -1,0 +1,47 @@
+name: Build And Deploy API to Azure
+
+on:
+  push:
+    branches: [ "main" ]  
+
+env:
+  ACR_NAME: anotadorgymregistry  
+  IMAGE_NAME: anotadorapi
+  WEBAPP_NAME: anotadorgym-api
+
+jobs:
+
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:      
+      contents: read
+      id-token: write
+
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+    
+      - name: Azure Login
+        uses: Azure/login@v3
+        with:
+            client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID }}
+            tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID }}
+            subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID }}
+        
+      - name: Login to Azure Container Registry
+        run: az acr login --name ${{ env.ACR_NAME }}
+      
+      - name: Build Docker Image
+        run: docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .          
+
+      - name: Push Docker Image
+        run: docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}          
+
+      - name: Deploy to Azure App Service
+        uses: Azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.WEBAPP_NAME }}
+          images: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        
+    

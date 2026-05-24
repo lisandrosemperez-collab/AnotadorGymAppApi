@@ -11,23 +11,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Diagnostics;
 using System.Text;
 using static System.Net.WebRequestMethods;
+using Microsoft.AspNetCore.HttpOverrides;
 
 
 var builder = WebApplication.CreateBuilder(args);
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080"; 
-Console.WriteLine($"🚀 Usando puerto: {port}");
-
-builder.WebHost.ConfigureKestrel(serverOptions =>
-{
-    serverOptions.ListenAnyIP(int.Parse(port));
-    serverOptions.Limits.MaxRequestBodySize = 10 * 1024 * 1024;
-    serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(5);
-    serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(1);    
-    serverOptions.Limits.MaxConcurrentConnections = 100;
-    serverOptions.Limits.MaxConcurrentUpgradedConnections = 100;
-});
 
 builder.Services.Configure<IISServerOptions>(options =>
 {
@@ -81,7 +71,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"])
             )
         };
-        options.RequireHttpsMetadata = true;
+        options.RequireHttpsMetadata = false;
     });
 
 builder.Services.AddSwaggerGen(options =>
@@ -144,6 +134,13 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto
+});
+
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
@@ -151,7 +148,6 @@ app.UseSwaggerUI(options =>
     options.RoutePrefix = string.Empty;
 });
 
-app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
