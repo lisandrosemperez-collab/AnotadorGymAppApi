@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using AnotadorGymAppApi.Features.Common.Tools;
 using AnotadorGymAppApi.Features.Ejercicios.Results;
+using AnotadorGymApp.Api.Features.Common.Tools;
+using System.Diagnostics;
 
 namespace AnotadorGymAppApi.Features.Ejercicios
 {
@@ -25,9 +27,9 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         {
             return appDbContext.Ejercicios.AsNoTracking();
         }
-        private IQueryable<EjercicioDTO> ProjectToDto(IQueryable<Ejercicio> query)
+        private IQueryable<EjercicioDto> ProjectToDto(IQueryable<Ejercicio> query)
         {
-            return query.Select(e => new EjercicioDTO
+            return query.Select(e => new EjercicioDto
             {
                 Nombre = e.Nombre,
                 EjercicioId = e.EjercicioId,
@@ -55,108 +57,77 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         }
         
         #region Gets
-        public async Task<(List<EjercicioDTO>, bool)> GetAllEjercicios()
+        public async Task<(List<EjercicioDto>, bool)> GetAllEjercicios()
         {
             var ejerciciosCache = await cacheService.GetAsync(CACHE_KEY);
             
-            if (ejerciciosCache != null)
+            if (!string.IsNullOrWhiteSpace(ejerciciosCache))
             {
-                var data = JsonSerializer.Deserialize<List<EjercicioDTO>>(ejerciciosCache)
-                   ?? new List<EjercicioDTO>();
+                var data = DeserealizarCache.DeserializarCache<EjercicioDto>(ejerciciosCache);
 
                 return (data, true);
             }
 
             var ejercicios = BaseQuery();
+            
+            Debug.WriteLine($"BaseQuery Count: {await ejercicios.CountAsync()}");            
+            
             var result = await ProjectToDto(ejercicios).ToListAsync();
+
+
+            Debug.WriteLine($"Result Count: {result.Count}");
+
             var json = System.Text.Json.JsonSerializer.Serialize(result);
 
             await cacheService.SetAsync(CACHE_KEY, json);
 
+            Debug.WriteLine(result.Count);
+
             return (result,false);
         }
-        public async Task<(List<EjercicioDTO?>, int,bool)> GetEjercicios(PaginationParams pagination)
+        public async Task<(List<EjercicioDto?>, int,bool)> GetEjercicios(PaginationParams pagination)
         {
             if (pagination.Page < 1) pagination.Page = 1;
             if (pagination.PageSize <= 0) pagination.PageSize = 10;
             if (pagination.PageSize > 100) pagination.PageSize = 100;
 
-            var cache = await cacheService.GetAsync(CACHE_KEY);
-            var totalCount = 0;            
-            List<EjercicioDTO> todosEjercicios;
+            var cache = await cacheService.GetAsync(CACHE_KEY);            
+            List<EjercicioDto> todosEjercicios;
+            bool desdeCache = false;
 
             if (!string.IsNullOrEmpty(cache))
+            {                
+                todosEjercicios = DeserealizarCache.DeserializarCache<EjercicioDto>(cache);                
+
+                desdeCache = true;
+            }
+            else
             {
-                try
-                {
-                    todosEjercicios = JsonSerializer.Deserialize<List<EjercicioDTO>>(cache)
-                              ?? new List<EjercicioDTO>();
-                }
-                catch
-                {
-                    todosEjercicios = new List<EjercicioDTO>();
-                }
-
-                if (!string.IsNullOrWhiteSpace(pagination.Nombre))
-                {
-                    todosEjercicios = todosEjercicios
-                        .Where(e => e.Nombre.Contains(pagination.Nombre, StringComparison.OrdinalIgnoreCase))
-                        .ToList();
-                }
-
-                totalCount = todosEjercicios.Count;
-
-                var items = todosEjercicios
-                    .OrderBy(e => e.Nombre)
-                    .Skip((pagination.Page - 1) * pagination.PageSize)
-                    .Take(pagination.PageSize)
-                    .ToList();
-
-                return (items, totalCount, true);
+                todosEjercicios = await ProjectToDto(BaseQuery()).ToListAsync();                
+                var json = JsonSerializer.Serialize(todosEjercicios);
+                await cacheService.SetAsync(CACHE_KEY, json);
+                desdeCache = false;
             }
 
-            todosEjercicios = await ProjectToDto(BaseQuery()).ToListAsync();
-            var json = JsonSerializer.Serialize(todosEjercicios);
-            await cacheService.SetAsync(CACHE_KEY, json);
+            todosEjercicios = FiltrarEjercicios(todosEjercicios, pagination);
 
-            var filtrados = todosEjercicios;
+            var totalCount = todosEjercicios.Count();
 
-            if (!string.IsNullOrWhiteSpace(pagination.Nombre))
-            {
-                filtrados = filtrados
-                    .Where(e => e.Nombre.Contains(pagination.Nombre, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-            }
+            var paginados = PaginarEjercicios(todosEjercicios, pagination);
 
-            totalCount = filtrados.Count();
-
-            var itemsDb = filtrados
-                .OrderBy(e => e.Nombre)
-                .Skip((pagination.Page - 1) * pagination.PageSize)
-                .Take(pagination.PageSize)
-                .ToList();                                    
-
-            return (itemsDb, totalCount,false);
+            return (paginados, totalCount, desdeCache);
         }        
-        public async Task<(EjercicioDTO?, bool)> GetPorId(int id)
+        public async Task<(EjercicioDto?, bool)> GetPorId(int id)
         {
             var ejerciciosCache = await cacheService.GetAsync(CACHE_KEY);
 
             if (!string.IsNullOrEmpty(ejerciciosCache))
-            {                
-                try
-                {
-                    var data = JsonSerializer.Deserialize<List<EjercicioDTO>>(ejerciciosCache)
-                               ?? new List<EjercicioDTO>();
+            {                                
+                var data = DeserealizarCache.DeserializarCache<EjercicioDto>(ejerciciosCache);
 
-                    var ejercicio = data.FirstOrDefault(e => e.EjercicioId == id);
+                var ejercicio = data.FirstOrDefault(e => e.EjercicioId == id);
 
-                    return (ejercicio, true);
-                }
-                catch
-                {
-                    // cache corrupto → ignorar
-                }
+                return (ejercicio, true);                
             }
 
             var query = appDbContext.Ejercicios
@@ -297,5 +268,32 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         }
 
         #endregion
+
+        private List<EjercicioDto> FiltrarEjercicios(
+            List<EjercicioDto> ejercicios,
+            PaginationParams pagination)
+        {
+            if (string.IsNullOrWhiteSpace(pagination.Nombre))
+                return ejercicios;
+
+            return ejercicios
+                .Where(e =>
+                    e.Nombre.Contains(
+                        pagination.Nombre,
+                        StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        private List<EjercicioDto> PaginarEjercicios(
+            List<EjercicioDto> ejercicios,
+            PaginationParams pagination)
+        {
+            return ejercicios
+                .OrderBy(e => e.Nombre)
+                .Skip((pagination.Page - 1) * pagination.PageSize)
+                .Take(pagination.PageSize)
+                .ToList();
+        }
+        
     }
 }

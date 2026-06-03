@@ -5,7 +5,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 {
     public interface IEjercicioImport
     {
-        Task<ImportResultDTO> ImportarEjerciciosDesdeJsonAsync(List<EjercicioDTO> ejerciciosImport);
+        Task<ImportResultDTO> ImportarEjerciciosDesdeJsonAsync(List<EjercicioDto> ejerciciosImport);
         Task<ImportResultDTO> ImportarEjerciciosDesdeArchivoAsync(IFormFile archivo);
     }
 }

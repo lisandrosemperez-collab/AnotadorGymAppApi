@@ -6,5 +6,6 @@ namespace AnotadorGymAppApi.Features.Rutinas.Results
     {
         public List<RutinaDto> Items { get; set; }
         public int TotalCount { get; set; }
+        public bool DesdeCache { get; set; }
     }
 }

@@ -1,35 +1,58 @@
-﻿using AnotadorGymAppApi.Features.Common.Pagination;
+﻿using AnotadorGymApp.Api.Features.Common.Tools;
+using AnotadorGymAppApi.Domain.Entities.Rutina;
+using AnotadorGymAppApi.Features.Common.Pagination;
+using AnotadorGymAppApi.Features.Ejercicios.DTOs;
+using AnotadorGymAppApi.Features.Rutinas.DTOs;
+using AnotadorGymAppApi.Features.Rutinas.Results;
+using AnotadorGymAppApi.Infrastructure.Cache;
 using AnotadorGymAppApi.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
-using AnotadorGymAppApi.Features.Rutinas.DTOs;
-using AnotadorGymAppApi.Features.Ejercicios.DTOs;
-using AnotadorGymAppApi.Features.Rutinas.Results;
-using AnotadorGymAppApi.Domain.Entities.Rutina;
 
 namespace AnotadorGymAppApi.Features.Rutinas
 {
     public class RutinaService : IRutinaService
     {
         private readonly AppDbContext _DbContext;
-        private readonly ILogger<RutinaService> _logger;        
-        public RutinaService(AppDbContext DbContext, ILogger<RutinaService> logger)
+        private readonly ILogger<RutinaService> _logger;
+        private readonly ICacheService _cacheService;
+        private const string CACHE_KEY = "Rutinas.json";
+        public RutinaService(AppDbContext DbContext, ILogger<RutinaService> logger, ICacheService cacheService)
         {
             _DbContext = DbContext;
             _logger = logger;            
+            _cacheService = cacheService;
         }       
 
         #region Gets
         public async Task<RutinaListResult> GetAllRutinas()
         {
-            var count = await _DbContext.Rutinas.CountAsync();
-            _logger.LogInformation("Rutinas en DB: {Count}", count);
+            var totalCount = 0;
+            var rutinas = new List<RutinaDto>();
+            var desdeCache = false;
 
-            var rutinasQuery = _DbContext.Rutinas.AsNoTracking().OrderBy(r => r.Nombre);
-            var totalCount = await rutinasQuery.CountAsync();
+            var rutinasCache = await _cacheService.GetAsync(CACHE_KEY);
+
+            if (!string.IsNullOrWhiteSpace(rutinasCache))
+            {
+                rutinas = DeserealizarCache.DeserializarCache<RutinaDto>(rutinasCache);
+                totalCount = rutinas.Count;
+                desdeCache = true;
+            }
+            else
+            {                
+                var rutinasQuery = _DbContext.Rutinas.AsNoTracking().OrderBy(r => r.Nombre);
+
+                totalCount = await rutinasQuery.CountAsync();                
+
+                rutinas = await ProjectToDto(rutinasQuery).ToListAsync();
+
+                await _cacheService.SetAsync(CACHE_KEY, System.Text.Json.JsonSerializer.Serialize(rutinas));
+
+            }
             
-            var Rutinas = await ProjectToDto(rutinasQuery).ToListAsync();
-
-            return new RutinaListResult{ Items = Rutinas, TotalCount = totalCount};
+            _logger.LogInformation("Rutinas: {Count}", totalCount);
+            _logger.LogInformation("Rutinas en Cache: {Cache}", desdeCache);
+            return new RutinaListResult { Items = rutinas, TotalCount = totalCount,DesdeCache = desdeCache };
         }
         public async Task<RutinaDto> GetRutina(string nombre)
         {

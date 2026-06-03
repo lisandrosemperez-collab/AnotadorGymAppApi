@@ -7,10 +7,10 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 {
     public interface IEjercicioService
     {
-        public Task<(List<EjercicioDTO?>, bool)> GetAllEjercicios();                
-        public Task<(List<EjercicioDTO?>, int,bool)> GetEjercicios(PaginationParams pagination);        
+        public Task<(List<EjercicioDto?>, bool)> GetAllEjercicios();                
+        public Task<(List<EjercicioDto?>, int,bool)> GetEjercicios(PaginationParams pagination);        
         Task<bool> EliminarEjercicioAsync(int ejercicioId);
-        public Task<(EjercicioDTO?,bool)> GetPorId(int id);        
+        public Task<(EjercicioDto?,bool)> GetPorId(int id);        
         public Task<EjercicioSimpleDTO?> ActualizarEjercicioAsync(int id, EjercicioSimpleDTO dto);
         Task<ActualizarResult> ActualizarEjerciciosAsync(List<EjercicioSimpleDTO> dtos);
 

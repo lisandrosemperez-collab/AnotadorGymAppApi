@@ -36,7 +36,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
             try
             {
-                var datos = await _jsonFileValidator.ValidateJsonFileAsync<List<EjercicioDTO>>(archivo);
+                var datos = await _jsonFileValidator.ValidateJsonFileAsync<List<EjercicioDto>>(archivo);
 
                 if (!datos.esValido)
                 {
@@ -77,7 +77,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             }
             
         }
-        public async Task<ImportResultDTO> ImportarEjerciciosDesdeJsonAsync(List<EjercicioDTO> ejerciciosJson)
+        public async Task<ImportResultDTO> ImportarEjerciciosDesdeJsonAsync(List<EjercicioDto> ejerciciosJson)
         {
             var resultado = new ImportResultDTO();            
 
@@ -195,7 +195,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
             return resultado;
         }
-        private async Task ProcesarEjerciciosAsync(List<EjercicioDTO> ejerciciosJson, 
+        private async Task ProcesarEjerciciosAsync(List<EjercicioDto> ejerciciosJson, 
             Dictionary<string, int> gruposMuscularesDict, Dictionary<string, int> musculosDict, 
             ImportResultDTO importResult, Dictionary<string, Ejercicio> ejerciciosDb)
         {
@@ -395,7 +395,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 }
             }
         }
-        private Ejercicio CrearNuevoEjercicioAsync(EjercicioDTO ejercicioJson, int GrupoMuscularId, int musculoPrimarioId, 
+        private Ejercicio CrearNuevoEjercicioAsync(EjercicioDto ejercicioJson, int GrupoMuscularId, int musculoPrimarioId, 
             Dictionary<int, Musculos> musculosInstanciasDic, Dictionary<string,int> musculosDict)
         {
             var nuevoEjercicio = new Ejercicio
@@ -491,7 +491,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
             return dict;
         }        
-        private bool ValidarEjercicioImport(EjercicioDTO ejercicioImport, int indice, ImportResultDTO resultado)
+        private bool ValidarEjercicioImport(EjercicioDto ejercicioImport, int indice, ImportResultDTO resultado)
         {
             if (string.IsNullOrWhiteSpace(ejercicioImport.Nombre))
             {

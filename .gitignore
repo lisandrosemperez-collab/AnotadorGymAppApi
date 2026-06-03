@@ -5,18 +5,22 @@ obj/
 *.user
 *.db
 
-# Configuración local
+# Configuraciï¿½n local
 appsettings.Development.json
 # appsettings.json  # (descomentar si contiene secretos)
 
-# Publicación Azure
-Properties/PublishProfiles/
-Properties/ServiceDependencies/
+# Publicaciï¿½n Azure
+**/Properties/PublishProfiles/
+**/Properties/ServiceDependencies/
 *.[Pp]ublish.xml
 *.publishproj
 
 # NuGet
 [Nn]uget/
+*.nupkg
+*.snupkg
+.nuget/
+packages/
 *.nupkg
 *.snupkg
 
@@ -26,4 +30,5 @@ logs/
 
 # Otros
 .DS_Store
+Thumbs.db
 

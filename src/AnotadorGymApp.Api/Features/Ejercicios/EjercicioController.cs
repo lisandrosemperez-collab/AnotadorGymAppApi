@@ -249,7 +249,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                 };
 
-                var ejercicios = JsonSerializer.Deserialize<List<EjercicioDTO>>(jsonContent, options);
+                var ejercicios = JsonSerializer.Deserialize<List<EjercicioDto>>(jsonContent, options);
 
                 if (ejercicios != null)
                 {
@@ -309,7 +309,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         /// <response code="500">Error interno del servidor.</response>
         [Authorize(Roles = "Admin,Invitado")]
         [HttpGet("exportar")]
-        public async Task<ActionResult<IEnumerable<EjercicioDTO>>> GetEjercicios()
+        public async Task<ActionResult<IEnumerable<EjercicioDto>>> GetEjercicios()
         {
             var (data, fromCache) = await _ejercicioService.GetAllEjercicios();
 
@@ -332,14 +332,14 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         /// <response code="500">Error interno del servidor.</response>
         [Authorize(Roles = "Admin,Invitado")]
         [HttpGet]        
-        public async Task<ActionResult<PagedResult<EjercicioDTO>>> GetEjercicios([FromQuery] PaginationParams pagination)
+        public async Task<ActionResult<PagedResult<EjercicioDto>>> GetEjercicios([FromQuery] PaginationParams pagination)
         {
             var (data,totalCount, fromCache) = await _ejercicioService.GetEjercicios(pagination);
             _logger.LogInformation("Ejercicios obtenidos desde {Source}", fromCache ? "CACHE" : "DB");
 
             AddPaginationHeaders(totalCount, pagination, fromCache, !data.Any());
 
-            return Ok(new PagedResult<EjercicioDTO>
+            return Ok(new PagedResult<EjercicioDto>
             {
                 Items = data,
                 TotalCount = totalCount,
@@ -350,7 +350,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
         [Authorize(Roles = "Admin,Invitado")]
         [HttpGet("{id}")]
-        public async Task<ActionResult<EjercicioDTO>> GetPorId(int id)
+        public async Task<ActionResult<EjercicioDto>> GetPorId(int id)
         {
             var (result,fromCache) = await _ejercicioService.GetPorId(id);
 
