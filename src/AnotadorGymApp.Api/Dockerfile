@@ -11,16 +11,21 @@ EXPOSE 8080
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["AnotadorGymAppApi.csproj", "."]
-RUN dotnet restore "./AnotadorGymAppApi.csproj"
-COPY . .
-RUN dotnet build "./AnotadorGymAppApi.csproj" -c $BUILD_CONFIGURATION -o /app/build
+COPY ["src/AnotadorGymApp.Api/AnotadorGymApp.Api.csproj", "src/AnotadorGymApp.Api/"]
 
+RUN dotnet restore "src/AnotadorGymApp.Api/AnotadorGymApp.Api.csproj"
+
+COPY . .
+WORKDIR "/src/src/AnotadorGymApp.Api"
+RUN dotnet build "AnotadorGymApp.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./AnotadorGymAppApi.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
-
+RUN dotnet publish "AnotadorGymApp.Api.csproj" \
+    -c $BUILD_CONFIGURATION \
+    -o /app/publish \
+    /p:UseAppHost=false
+    
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "AnotadorGymAppApi.dll"]
+ENTRYPOINT ["dotnet", "AnotadorGymApp.Api.dll"]
