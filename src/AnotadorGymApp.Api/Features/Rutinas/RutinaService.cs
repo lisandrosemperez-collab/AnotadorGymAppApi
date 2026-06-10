@@ -34,22 +34,39 @@ namespace AnotadorGymAppApi.Features.Rutinas
 
             if (!string.IsNullOrWhiteSpace(rutinasCache))
             {
-                rutinas = DeserealizarCache.DeserializarCache<RutinaDto>(rutinasCache);
-                totalCount = rutinas.Count;
-                desdeCache = true;
+                try
+                {
+                    rutinas = DeserealizarCache.DeserializarCache<RutinaDto>(rutinasCache);
+                    totalCount = rutinas.Count;
+                    desdeCache = true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Cache '{CacheKey}' contiene JSON inválido. Se consultará la base de datos.", CACHE_KEY);
+                    // En caso de JSON inválido, caer a la consulta a DB y actualizar cache más abajo
+                    rutinasCache = null;
+                }
             }
-            else
-            {                
+
+            if (string.IsNullOrWhiteSpace(rutinasCache))
+            {
                 var rutinasQuery = _DbContext.Rutinas.AsNoTracking().OrderBy(r => r.Nombre);
 
-                totalCount = await rutinasQuery.CountAsync();                
+                totalCount = await rutinasQuery.CountAsync();
 
                 rutinas = await ProjectToDto(rutinasQuery).ToListAsync();
 
-                await _cacheService.SetAsync(CACHE_KEY, System.Text.Json.JsonSerializer.Serialize(rutinas));
-
+                try
+                {
+                    await _cacheService.SetAsync(CACHE_KEY, System.Text.Json.JsonSerializer.Serialize(rutinas));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Fallo al guardar rutinas en cache '{CacheKey}'", CACHE_KEY);
+                    // No impedimos la respuesta si falla el guardado en cache
+                }
             }
-            
+
             _logger.LogInformation("Rutinas: {Count}", totalCount);
             _logger.LogInformation("Rutinas en Cache: {Cache}", desdeCache);
             return new RutinaListResult { Items = rutinas, TotalCount = totalCount,DesdeCache = desdeCache };

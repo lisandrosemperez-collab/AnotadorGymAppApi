@@ -72,23 +72,47 @@ namespace AnotadorGymAppApi.Features.Rutinas
         {
             var resultado = new ImportResultDTO();
 
+            if (rutinasImport == null || !rutinasImport.Any())
+            {
+                resultado.FalloCritico = true;
+                resultado.Errores.Add(new ImportErrorDTO { Mensaje = "Lista de rutinas vacía o nula" });
+                _logger.LogWarning("Importación recibida con lista de rutinas nula o vacía.");
+                return resultado;
+            }
+
+            // Extraemos nombres de ejercicios y normalizamos a minúsculas para comparación insensible a mayúsculas
             var nombreEjercicios = rutinasImport
-                .SelectMany(r => r.Semanas)
-                .SelectMany(s => s.Dias)
-                .SelectMany(d => d.Ejercicios)
-                .Select(e => e.Ejercicio.Nombre)
+                .SelectMany(r => r.Semanas ?? Enumerable.Empty<RutinaSemanaDto>())
+                .SelectMany(s => s.Dias ?? Enumerable.Empty<RutinaDiaDto>())
+                .SelectMany(d => d.Ejercicios ?? Enumerable.Empty<RutinaEjercicioDto>())
+                .Select(e => e.Ejercicio?.Nombre)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n!.Trim())
                 .Distinct()
                 .ToList();
 
-            var ejerciciosExistentes = await appDbContext.Ejercicios
-                .Where(e => nombreEjercicios.Contains(e.Nombre))
-                .ToDictionaryAsync(e => e.Nombre, e => e.EjercicioId);
+            var nombreEjerciciosNormalized = nombreEjercicios
+                .Select(n => n.ToLowerInvariant())
+                .ToList();
+
+            // Consultamos ejercicios existentes en la base de datos y construimos un diccionario en memoria
+            // para evitar problemas de traducción de expresiones y garantizar búsquedas case-insensitive.
+            var ejerciciosEnDb = await appDbContext.Ejercicios.ToListAsync();
+            var ejerciciosExistentes = ejerciciosEnDb
+                .Where(e => !string.IsNullOrWhiteSpace(e.Nombre))
+                .ToDictionary(e => e.Nombre.Trim().ToLowerInvariant(), e => e.EjercicioId);
+
+            // Logging diagnóstico
+            _logger.LogDebug("Nombres de ejercicios extraídos del JSON: {Count}", nombreEjercicios.Count);
+            _logger.LogDebug("Ejercicios existentes en DB: {Count}", ejerciciosExistentes.Count);
 
             var errores = new List<ImportErrorDTO>();
 
+            // Comprobamos ejercicios no encontrados
             foreach (var nombre in nombreEjercicios)
             {
-                if (!ejerciciosExistentes.ContainsKey(nombre))
+                var key = nombre.Trim().ToLowerInvariant();
+                if (!ejerciciosExistentes.ContainsKey(key))
                 {
                     errores.Add(new ImportErrorDTO
                     {
@@ -98,93 +122,177 @@ namespace AnotadorGymAppApi.Features.Rutinas
                 }
             }
 
+            // Comprobamos si ya existen rutinas con el mismo nombre (evitar duplicados accidentales)
+            var nombresRutinasEntrantes = rutinasImport.Select(r => r.Nombre).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var rutinasExistentesNombres = await appDbContext.Rutinas
+                .Where(r => nombresRutinasEntrantes.Contains(r.Nombre))
+                .Select(r => r.Nombre)
+                .ToListAsync();
+
+            if (rutinasExistentesNombres.Any())
+            {
+                foreach (var n in rutinasExistentesNombres)
+                {
+                    errores.Add(new ImportErrorDTO
+                    {
+                        Mensaje = $"Ya existe una rutina con el nombre: {n}"
+                    });
+                }
+            }
+
             if (errores.Any())
             {
                 resultado.Errores = errores;
+                resultado.FalloCritico = true; // No persistimos si hay errores previos
+                _logger.LogWarning("Errores detectados antes de persistir: {Count}", errores.Count);
+                _logger.LogDebug("Listado de errores:");
+                foreach (var er in errores)
+                {
+                    _logger.LogDebug("- {Mensaje} (Ejercicio: {Ejercicio})", er.Mensaje, er.NombreEjercicio);
+                }
                 return resultado;
             }
 
-            //Guardamos las rutinas, semanas, dias, ejercicios y series
+            //Guardamos las rutinas, semanas, dias, ejercicios y series dentro de una transacción
             var rutinasEntidad = new List<Rutina>();
-            foreach (var rutinaDto in rutinasImport)
+            Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? transaction = null;
+            try
             {
+                // Detectamos el proveedor de base de datos. Para el proveedor InMemory (usado en tests)
+                // no se debe forzar el uso de transacciones ya que no las soporta.
+                var providerName = appDbContext.Database.ProviderName ?? string.Empty;
+                if (providerName.Contains("InMemory", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("Proveedor de BD InMemory detectado ('{Provider}'): se omite la creación de transacción. Configure ConfigureWarnings en el DbContext para suprimir TransactionIgnoredWarning si desea evitar logs.", providerName);
+                    transaction = null;
+                }
+                else
+                {
+                    // En entornos reales intentamos iniciar transacción y dejamos que cualquier excepción relevante se propague
+                    transaction = await appDbContext.Database.BeginTransactionAsync();
+                }
+
+                foreach (var rutinaDto in rutinasImport)
+                {
+
                 var rutina = new Rutina
                 {
                     Nombre = rutinaDto.Nombre,
                     Descripcion = rutinaDto.Descripcion,
-                    FrecuenciaPorGrupo = rutinaDto.FrecuenciaPorGrupo,
-                    Dificultad = rutinaDto.Dificultad,
-                    TiempoPorSesion = rutinaDto.TiempoPorSesion,
-                    ImageSource = rutinaDto.ImageSource,
+                    FrecuenciaPorGrupo = rutinaDto.FrecuenciaPorGrupo ?? string.Empty,
+                    Dificultad = rutinaDto.Dificultad ?? string.Empty,
+                    TiempoPorSesion = rutinaDto.TiempoPorSesion ?? string.Empty,
+                    ImageSource = rutinaDto.ImageSource ?? string.Empty,
                     Semanas = new List<RutinaSemana>()
                 };
 
-                int numSemana = 1;
-                foreach (var semanaDto in rutinaDto.Semanas)
-                {
-                    var rutinaSemana = new RutinaSemana
+                    int numSemana = 1;
+                    foreach (var semanaDto in rutinaDto.Semanas ?? Enumerable.Empty<RutinaSemanaDto>())
                     {
-                        Dias = new List<RutinaDia>(),
-                        NumeroSemana = numSemana++
-                    };
-                    int numDia = 1;
-
-                    foreach (var diaDto in semanaDto.Dias)
-                    {
-                        var rutinaDia = new RutinaDia
-                        {                                                
-                            Ejercicios = new List<RutinaEjercicio>(),
-                            NumeroDia = numDia++
-                        };
-                        int numEjercicio = 1;
-
-                        foreach (var ejDto in diaDto.Ejercicios)
+                        var rutinaSemana = new RutinaSemana
                         {
-                            var ejercicioId = ejerciciosExistentes[ejDto.Ejercicio.Nombre];
-                            var rutinaEjercicio = new RutinaEjercicio
-                            {
-                                EjercicioId = ejercicioId,
-                                NumeroEjercicio = numEjercicio++,
-                                Series = new List<RutinaSerie>()
-                            };
-                            int numSerie = 1;
+                            Dias = new List<RutinaDia>(),
+                            NumeroSemana = numSemana++
+                        };
+                        int numDia = 1;
 
-                            foreach (var serieDto in ejDto.Series)
+                        foreach (var diaDto in semanaDto.Dias ?? Enumerable.Empty<RutinaDiaDto>())
+                        {
+                            var rutinaDia = new RutinaDia
                             {
-                                if (!TimeSpan.TryParse(serieDto.Descanso, out var descanso))
-                                {                                    
+                                Ejercicios = new List<RutinaEjercicio>(),
+                                NumeroDia = numDia++
+                            };
+                            int numEjercicio = 1;
+
+                            foreach (var ejDto in diaDto.Ejercicios ?? Enumerable.Empty<RutinaEjercicioDto>())
+                            {
+                                var nombreEj = ejDto.Ejercicio?.Nombre?.Trim() ?? string.Empty;
+                                var ejercicioKey = nombreEj.ToLowerInvariant();
+                                if (!ejerciciosExistentes.TryGetValue(ejercicioKey, out var ejercicioId))
+                                {
                                     errores.Add(new ImportErrorDTO
                                     {
-                                        NombreEjercicio = ejDto.Ejercicio.Nombre,
-                                        Mensaje = $"Formato de descanso inválido: {serieDto.Descanso}"
+                                        NombreEjercicio = nombreEj,
+                                        Mensaje = "Ejercicio no encontrado en la base de datos (durante mapeo)"
                                     });
                                     continue;
                                 }
-
-                                var serie = new RutinaSerie
+                                var rutinaEjercicio = new RutinaEjercicio
                                 {
-                                    Repeticiones = serieDto.Repeticiones,
-                                    Porcentaje1RM = serieDto.Porcentaje1RM,
-                                    Tipo = serieDto.Tipo,
-                                    Descanso = TimeSpan.Parse(serieDto.Descanso),
-                                    NumeroSerie = numSerie++
+                                    EjercicioId = ejercicioId,
+                                    NumeroEjercicio = numEjercicio++,
+                                    Series = new List<RutinaSerie>()
                                 };
-                                rutinaEjercicio.Series.Add(serie);
+                                int numSerie = 1;
+
+                                foreach (var serieDto in ejDto.Series ?? Enumerable.Empty<RutinaSerieDto>())
+                                {
+                                    if (!TimeSpan.TryParse(serieDto.Descanso, out var descanso))
+                                    {
+                                        errores.Add(new ImportErrorDTO
+                                        {
+                                            NombreEjercicio = nombreEj,
+                                            Mensaje = $"Formato de descanso inválido: {serieDto.Descanso}"
+                                        });
+                                        continue;
+                                    }
+
+                                    var serie = new RutinaSerie
+                                    {
+                                        Repeticiones = serieDto.Repeticiones,
+                                        Porcentaje1RM = serieDto.Porcentaje1RM,
+                                        Tipo = serieDto.Tipo,
+                                        Descanso = descanso,
+                                        NumeroSerie = numSerie++
+                                    };
+                                    rutinaEjercicio.Series.Add(serie);
+                                }
+                                rutinaDia.Ejercicios.Add(rutinaEjercicio);
                             }
-                            rutinaDia.Ejercicios.Add(rutinaEjercicio);
+                            rutinaSemana.Dias.Add(rutinaDia);
                         }
-                        rutinaSemana.Dias.Add(rutinaDia);
+
+                        rutina.Semanas.Add(rutinaSemana);
                     }
+                    rutinasEntidad.Add(rutina);
+                    appDbContext.Rutinas.Add(rutina);
+                }
 
-                    rutina.Semanas.Add(rutinaSemana);                    
-                }   
-                rutinasEntidad.Add(rutina);
-                appDbContext.Rutinas.Add(rutina);                
+                // Si durante el mapeo surgieron errores (por ejemplo formato de descanso) no persistimos
+                if (errores.Any())
+                {
+                    if (transaction != null)
+                    {
+                        await transaction.RollbackAsync();
+                    }
+                    resultado.Errores = errores;
+                    resultado.FalloCritico = true;
+                    _logger.LogWarning("Errores detectados durante el mapeo, no se persisten cambios. Count={Count}", errores.Count);
+                    return resultado;
+                }
+
+                await appDbContext.SaveChangesAsync();
+                if (transaction != null)
+                {
+                    await transaction.CommitAsync();
+                }
+
+                resultado.RutinasCreadas = rutinasEntidad.Count;
+                _logger.LogInformation("Importación finalizada. Rutinas creadas: {Count}", resultado.RutinasCreadas);
+                return resultado;
             }
-
-            await appDbContext.SaveChangesAsync();            
-            resultado.RutinasCreadas = rutinasEntidad.Count;
-            return resultado;
+            catch (Exception ex)
+            {
+                if (transaction != null)
+                {
+                    await transaction.RollbackAsync();
+                }
+                _logger.LogError(ex, "Error al persistir rutinas importadas");
+                resultado.FalloCritico = true;
+                resultado.Errores.Add(new ImportErrorDTO { Mensaje = ex.Message, StackTrace = ex.StackTrace });
+                return resultado;
+            }
         }
     }
 }

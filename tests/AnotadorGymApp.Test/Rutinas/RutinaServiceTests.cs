@@ -104,5 +104,150 @@ namespace AnotadorGymApp.Test.Rutinas
                 Times.Never,
                 "Porque los datos ya vienen del cache, entonces el servicio no debería intentar guardar nada nuevo en cache");
         }
+
+        [Fact]
+        public async Task GetAllRutinas_DeberiaConsultarDb_CuandoCacheDevuelvaJsonInvalidoYDesdeCacheFalse()
+        {
+            // Arrange
+            var context = await DbContextHelper.AppDbContextPrueba();
+            DataHelper.ObtenerRutinasFake(context);
+
+            context.Rutinas.Should().HaveCount(2);
+
+            var mockCache = new Mock<ICacheService>();
+            // Cache devuelve JSON inválido
+            mockCache
+                .Setup(c => c.GetAsync(It.IsAny<string>()))
+                .ReturnsAsync("not-a-json");
+
+            mockCache
+                .Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+
+            var logger = NullLogger<RutinaService>.Instance;
+
+            var service = new RutinaService(
+                context,
+                logger,
+                mockCache.Object);
+
+            // Act
+            var result = await service.GetAllRutinas();
+
+            // Assert
+            result.Items.Should().NotBeNull();
+            result.DesdeCache.Should().BeFalse("Porque el cache devolvió JSON inválido y debe caer a la base de datos");
+            result.Items.Should().HaveCount(2);
+            result.Items.Should().Contain(r => r.Nombre == "Rutina A");
+            result.Items.Should().Contain(r => r.Nombre == "Rutina B");
+
+            mockCache.Verify(c => c.GetAsync(It.IsAny<string>()), Times.Once);
+            mockCache.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetRutina_DeberiaRetornarRutinaCuandoExiste()
+        {
+            // Arrange
+            var context = await DbContextHelper.AppDbContextPrueba();
+            DataHelper.ObtenerRutinasFake(context);
+
+            var mockCache = new Mock<ICacheService>();            
+
+            var logger = NullLogger<RutinaService>.Instance;
+
+            var service = new RutinaService(
+                context,
+                logger,
+                mockCache.Object);
+
+            // Act
+            var result = await service.GetRutina("Rutina A");
+
+            // Assert
+            result.Should().NotBeNull();
+            result!.Nombre.Should().Be("Rutina A");
+            result.RutinaId.Should().Be(1);
+            result.Semanas.Should().NotBeNull();
+            result.Semanas.Should().HaveCountGreaterThan(0);
+            var primeraSemana = result.Semanas.First();
+            primeraSemana.Dias.Should().NotBeNull();
+            primeraSemana.Dias.Should().HaveCountGreaterThan(0);
+            var primerDia = primeraSemana.Dias.First();
+            primerDia.Ejercicios.Should().NotBeNull();
+            primerDia.Ejercicios.Should().HaveCountGreaterThan(0);
+
+            // Verificamos que el servicio no intentó leer ni escribir en cache en esta operación
+            mockCache.Verify(c => c.GetAsync(It.IsAny<string>()), Times.Never);
+            mockCache.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GetRutina_DeberiaRetornarNullCuandoNoExiste()
+        {
+            // Arrange
+            var context = await DbContextHelper.AppDbContextPrueba();
+            DataHelper.ObtenerRutinasFake(context);
+
+            var mockCache = new Mock<ICacheService>();            
+
+            var logger = NullLogger<RutinaService>.Instance;
+
+            var service = new RutinaService(
+                context,
+                logger,
+                mockCache.Object);
+
+            // Act
+            var result = await service.GetRutina("Rutina inexistente");
+
+            // Assert
+            result.Should().BeNull();
+            mockCache.Verify(c => c.GetAsync(It.IsAny<string>()), Times.Never);
+            mockCache.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task EliminarRutinaAsync_RutinaNoExiste_DeberiaRetornarFalse()
+        {
+            // Arrange
+            var context = await DbContextHelper.AppDbContextPrueba();
+            DataHelper.ObtenerRutinasFake(context);
+
+            var mockCache = new Mock<ICacheService>();            
+            var logger = NullLogger<RutinaService>.Instance;
+            var service = new RutinaService(
+                context,
+                logger,
+                mockCache.Object);
+            // Act
+            var result = await service.EliminarRutinaAsync(999); // Id que no existe
+            // Assert
+            result.Should().BeFalse();
+            context.Rutinas.Should().HaveCount(2);
+        }
+
+        [Fact]
+        public async Task EliminarRutinaAsync_RutinaExiste_DeberiaEliminarYRetornarTrue()
+        {
+            // Arrange
+            var context = await DbContextHelper.AppDbContextPrueba();
+            DataHelper.ObtenerRutinasFake(context);
+            var mockCache = new Mock<ICacheService>();
+            
+            var logger = NullLogger<RutinaService>.Instance;
+            var service = new RutinaService(
+                context,
+                logger,
+                mockCache.Object);
+            // Pre-assert
+            context.Rutinas.Should().Contain(r => r.RutinaId == 1);
+            // Act
+            var result = await service.EliminarRutinaAsync(1);
+            // Assert
+            result.Should().BeTrue();
+            context.Rutinas.Should().HaveCount(1);
+            context.Rutinas.Should().NotContain(r => r.RutinaId == 1);
+        }
     }
 }
