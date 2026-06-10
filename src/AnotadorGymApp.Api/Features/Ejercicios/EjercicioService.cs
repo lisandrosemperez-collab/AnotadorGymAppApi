@@ -59,31 +59,40 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         #region Gets
         public async Task<(List<EjercicioDto>, bool)> GetAllEjercicios()
         {
-            var ejerciciosCache = await cacheService.GetAsync(CACHE_KEY);
-            
-            if (!string.IsNullOrWhiteSpace(ejerciciosCache))
+            var desdeCache = false;
+            var ejerciciosCacheJson = await cacheService.GetAsync(CACHE_KEY);            
+
+            if (!string.IsNullOrWhiteSpace(ejerciciosCacheJson))
             {
-                var data = DeserealizarCache.DeserializarCache<EjercicioDto>(ejerciciosCache);
+                try
+                {
+                    // Intentamos deserializar; si falla, se lanzará una excepción que atrapamos para fallback a BD
+                    var datos = DeserealizarCache.DeserializarCache<EjercicioDto>(ejerciciosCacheJson);
+                    desdeCache = true;
+                    return (datos, desdeCache);
 
-                return (data, true);
-            }
-
-            var ejercicios = BaseQuery();
+                }
+                catch (JsonException)
+                {
+                    // JSON inválido: fallback a BD y refrescar caché
+                    var datos = await CargarEjerciciosDesdeDbYRefrescarCacheAsync();
+                    desdeCache = false;
+                    return (datos, desdeCache);
+                }
+                catch (Exception)
+                {
+                    // Cualquier otro error al deserializar: fallback a BD
+                    var datos = await CargarEjerciciosDesdeDbYRefrescarCacheAsync();
+                    desdeCache = false;
+                    return (datos, desdeCache);
+                }
+            }            
             
-            Debug.WriteLine($"BaseQuery Count: {await ejercicios.CountAsync()}");            
-            
-            var result = await ProjectToDto(ejercicios).ToListAsync();
+            var result = await CargarEjerciciosDesdeDbYRefrescarCacheAsync();                       
 
+            Debug.WriteLine($"Result Count: {result.Count}");                        
 
-            Debug.WriteLine($"Result Count: {result.Count}");
-
-            var json = System.Text.Json.JsonSerializer.Serialize(result);
-
-            await cacheService.SetAsync(CACHE_KEY, json);
-
-            Debug.WriteLine(result.Count);
-
-            return (result,false);
+            return (result, desdeCache);
         }
         public async Task<(List<EjercicioDto?>, int,bool)> GetEjercicios(PaginationParams pagination)
         {
@@ -96,16 +105,28 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             bool desdeCache = false;
 
             if (!string.IsNullOrEmpty(cache))
-            {                
-                todosEjercicios = DeserealizarCache.DeserializarCache<EjercicioDto>(cache);                
-
-                desdeCache = true;
+            {
+                try
+                {
+                    todosEjercicios = DeserealizarCache.DeserializarCache<EjercicioDto>(cache);
+                    desdeCache = true;
+                }
+                catch (JsonException)
+                {
+                    // JSON inválido: fallback a BD y refrescar caché                    
+                    todosEjercicios = await CargarEjerciciosDesdeDbYRefrescarCacheAsync();                    
+                    desdeCache = false;
+                }
+                catch (Exception)
+                {
+                    // Cualquier otro error al deserializar: fallback a BD
+                    todosEjercicios = await CargarEjerciciosDesdeDbYRefrescarCacheAsync();                    
+                    desdeCache = false;
+                }
             }
             else
             {
-                todosEjercicios = await ProjectToDto(BaseQuery()).ToListAsync();                
-                var json = JsonSerializer.Serialize(todosEjercicios);
-                await cacheService.SetAsync(CACHE_KEY, json);
+                todosEjercicios = await CargarEjerciciosDesdeDbYRefrescarCacheAsync();                
                 desdeCache = false;
             }
 
@@ -120,29 +141,32 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         public async Task<(EjercicioDto?, bool)> GetPorId(int id)
         {
             var ejerciciosCache = await cacheService.GetAsync(CACHE_KEY);
+            var desdeCache = false;
 
-            if (!string.IsNullOrEmpty(ejerciciosCache))
-            {                                
-                var data = DeserealizarCache.DeserializarCache<EjercicioDto>(ejerciciosCache);
-
-                var ejercicio = data.FirstOrDefault(e => e.EjercicioId == id);
-
-                return (ejercicio, true);                
-            }
-
-            var query = appDbContext.Ejercicios
-                .Where(e => e.EjercicioId == id);
-
-            var ejercicioDb = await ProjectToDto(query)
-                .FirstOrDefaultAsync();
-
-            if (ejercicioDb != null)
+            if (!string.IsNullOrWhiteSpace(ejerciciosCache))
             {
-                var todosEjercicios = await ProjectToDto(BaseQuery()).ToListAsync();
+                try
+                {
+                    var data = DeserealizarCache.DeserializarCache<EjercicioDto>(ejerciciosCache);
+                    desdeCache = true;
+                    var ejercicio = data.FirstOrDefault(e => e.EjercicioId == id);
+                    return (ejercicio, desdeCache);
+                }               
+                catch (Exception)
+                {
+                    // Cualquier otro error al deserializar: fallback a BD
+                    var data = await CargarEjerciciosDesdeDbYRefrescarCacheAsync();
+                    desdeCache = false;
+                    var ejercicio = data.FirstOrDefault(e => e.EjercicioId == id);
+                    return (ejercicio, desdeCache);
+                }
+            }
+            var todos = await CargarEjerciciosDesdeDbYRefrescarCacheAsync();
 
-                await cacheService.SetAsync(CACHE_KEY, JsonSerializer.Serialize(todosEjercicios));
-            }                
-            return (ejercicioDb, false);
+            return (
+                todos.FirstOrDefault(e => e.EjercicioId == id),
+                false
+            );
         }
 
         #endregion
@@ -294,6 +318,25 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 .Take(pagination.PageSize)
                 .ToList();
         }
-        
+
+        private async Task<List<EjercicioDto>> CargarEjerciciosDesdeDbYRefrescarCacheAsync()
+        {
+            // Obtener desde BD y proyectar a DTO
+            var todosEjercicios = await ProjectToDto(BaseQuery()).ToListAsync();
+
+            // Intentar refrescar la caché; en caso de fallo, solo lo registramos y devolvemos los datos
+            try
+            {
+                var json = JsonSerializer.Serialize(todosEjercicios);
+                await cacheService.SetAsync(CACHE_KEY, json);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error al actualizar caché ({CACHE_KEY}): {ex.Message}");
+            }
+
+            return todosEjercicios;
+        }
+
     }
 }

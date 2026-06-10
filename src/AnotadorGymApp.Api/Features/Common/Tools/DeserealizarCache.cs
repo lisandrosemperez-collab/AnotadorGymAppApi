@@ -6,15 +6,9 @@ namespace AnotadorGymApp.Api.Features.Common.Tools
     {
         public static List<T> DeserializarCache<T>(string cache)
         {
-            try
-            {
-                return JsonSerializer.Deserialize<List<T>>(cache)
-                    ?? new List<T>();
-            }
-            catch
-            {
-                return new List<T>();
-            }
+            
+            return JsonSerializer.Deserialize<List<T>>(cache) ?? new List<T>();
+            
         }
     }
 }
