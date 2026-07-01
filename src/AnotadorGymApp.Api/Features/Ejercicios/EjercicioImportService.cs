@@ -8,9 +8,10 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Text.Json;
 using System.Text.RegularExpressions;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Globalization;
+using System.Text;
+using Microsoft.AspNetCore.Http;
 
 namespace AnotadorGymAppApi.Features.Ejercicios
 {
@@ -111,7 +112,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     .AsNoTracking()
                     .ToDictionaryAsync(x => Normalizar(x.Nombre), x => x.GrupoMuscularId);
 
-                var gruposMuscularesDict = ProcesarGruposMuscularesAsync(
+                var gruposMuscularesDict = ProcesarGruposMusculares(
                     gruposMuscularesJson,
                     resultado,
                     gruposMuscularesDb);
@@ -120,7 +121,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
                 
                 gruposMuscularesDict = await appDbContext.GrupoMusculares.AsNoTracking()
-                    .ToDictionaryAsync(x => x.Nombre.ToLower(), x => x.GrupoMuscularId);
+                    .ToDictionaryAsync(x => Normalizar(x.Nombre), x => x.GrupoMuscularId);
 
                 #endregion
 
@@ -132,7 +133,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     .AsNoTracking()
                     .ToDictionaryAsync(m => Normalizar(m.Nombre), m => m.MusculoId);
                 
-                var musculosDict = ProcesarMusculosAsync(musculosJson, resultado, musculosDb);
+                var musculosDict = ProcesarMusculos(musculosJson, resultado, musculosDb);
 
                 await appDbContext.SaveChangesAsync();
 
@@ -147,32 +148,111 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
                 // Cargar ejercicios existentes en un diccionario SOLO PARA VALIDACIÓN rápida
                 var ejerciciosDb = await appDbContext.Ejercicios.AsNoTracking()
-                    .ToDictionaryAsync(e => e.Nombre.ToLower(), e => e);
+                    .ToDictionaryAsync(e => Normalizar(e.Nombre), e => e);
+
+                // Algunos proveedores (InMemory) no soportan transacciones y generan una advertencia
+                // que en el entorno de pruebas puede convertirse en excepción. Evitamos crear
+                // transacciones cuando estamos usando el proveedor InMemory.
+                var providerName = appDbContext.Database.ProviderName ?? string.Empty;
+                var usarTransaccion = !providerName.Contains("InMemory", StringComparison.OrdinalIgnoreCase);
 
                 await strategy.ExecuteAsync(async () =>
                 {
-                    using var transaction = await appDbContext.Database.BeginTransactionAsync();
-                    try
+                    if (!usarTransaccion)
                     {
-                        await ProcesarEjerciciosAsync(
-                            ejerciciosJson, gruposMuscularesDict, musculosDict, resultado, ejerciciosDb);
-
-                        await appDbContext.SaveChangesAsync();
-
-                        await transaction.CommitAsync();
-
-                        await _cacheService.DeleteAsync("Ejercicios.json");
-                    }
-                    catch (Exception ex)
-                    {
-                        await transaction.RollbackAsync();
-                        _logger.LogError(ex, "Error fatal en la transacción principal");
-                        resultado.Errores.Add(new ImportErrorDTO
+                        try
                         {
-                            Mensaje = $"Error fatal: {ex.Message}",
-                            StackTrace = ex.StackTrace
-                        });
-                        throw;
+                            await ProcesarEjerciciosAsync(
+                                ejerciciosJson, gruposMuscularesDict, musculosDict, resultado, ejerciciosDb);
+
+                            await appDbContext.SaveChangesAsync();
+
+                            // Intentar eliminar cache; si falla, revertimos manualmente los cambios en la BD
+                            try
+                            {
+                                await _cacheService.DeleteAsync("Ejercicios.json");
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error al eliminar cache tras guardar. Revirtiendo cambios manualmente.");
+                                // Determinar nombres de entrada normalizados
+                                var inputNames = ejerciciosJson
+                                    .Where(e => !string.IsNullOrWhiteSpace(e.Nombre))
+                                    .Select(e => Normalizar(e.Nombre))
+                                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                                // Cargar todos los ejercicios actuales y eliminar los que correspondan a los nombres de entrada
+                                var allEjercicios = await appDbContext.Ejercicios.ToListAsync();
+                                var creados = allEjercicios
+                                    .Where(e => inputNames.Contains(Normalizar(e.Nombre)) && !ejerciciosDb.ContainsKey(Normalizar(e.Nombre)))
+                                    .ToList();
+
+                                if (creados.Any())
+                                {
+                                    appDbContext.Ejercicios.RemoveRange(creados);
+                                    await appDbContext.SaveChangesAsync();
+                                }
+
+                                resultado.Errores.Add(new ImportErrorDTO
+                                {
+                                    Mensaje = $"Error fatal: {ex.Message}",
+                                    StackTrace = ex.StackTrace
+                                });
+
+                                throw;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error fatal en la importación sin transacción");
+                            resultado.Errores.Add(new ImportErrorDTO
+                            {
+                                Mensaje = $"Error fatal: {ex.Message}",
+                                StackTrace = ex.StackTrace
+                            });
+                            throw;
+                        }
+                    }
+                    else
+                    {
+                        using var transaction = await appDbContext.Database.BeginTransactionAsync();
+                        try
+                        {
+                            await ProcesarEjerciciosAsync(
+                                ejerciciosJson, gruposMuscularesDict, musculosDict, resultado, ejerciciosDb);
+
+                            await appDbContext.SaveChangesAsync();
+
+                            // Intentar eliminar cache antes de confirmar la transacción para que un fallo provoque rollback
+                            try
+                            {
+                                await _cacheService.DeleteAsync("Ejercicios.json");
+                                await transaction.CommitAsync();
+                            }
+                            catch (Exception ex)
+                            {
+                                await transaction.RollbackAsync();
+                                _logger.LogError(ex, "Error al eliminar cache antes de commit. Transacción revertida.");
+                                resultado.Errores.Add(new ImportErrorDTO
+                                {
+                                    Mensaje = $"Error fatal: {ex.Message}",
+                                    StackTrace = ex.StackTrace
+                                });
+                                throw;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            await transaction.RollbackAsync();                            
+                            _logger.LogError(ex, "Error fatal en la transacción principal");
+                            resultado.Errores.Add(new ImportErrorDTO
+                            {
+                                Mensaje = $"Error fatal: {ex.Message}",
+                                StackTrace = ex.StackTrace
+                            });
+                            throw;
+                        }
                     }
                 });
 
@@ -211,12 +291,28 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 ejerciciosDb.Keys.Select(Normalizar),
                 StringComparer.OrdinalIgnoreCase);                      
 
-            var musculosInstanciasDic = musculosDict.Values
-                .ToDictionary(id => id, id => {
+            var musculosInstanciasDic = new Dictionary<int, Musculos>();
+
+            // Reuse any Musculos entidades ya trackeadas en el DbContext para evitar conflictos
+            var trackedMusculos = appDbContext.ChangeTracker
+                .Entries<Musculos>()
+                .Where(e => e.State != EntityState.Detached)
+                .Select(e => e.Entity)
+                .ToDictionary(m => m.MusculoId, m => m);
+
+            foreach (var id in musculosDict.Values.Distinct())
+            {
+                if (trackedMusculos.TryGetValue(id, out var existente))
+                {
+                    musculosInstanciasDic[id] = existente;
+                }
+                else
+                {
                     var m = new Musculos { MusculoId = id };
                     appDbContext.Musculos.Attach(m);
-                    return m;
-            });          
+                    musculosInstanciasDic[id] = m;
+                }
+            }
 
             for (int i = 0; i < ejerciciosJson.Count; i++)
             {
@@ -288,7 +384,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                     #endregion
 
                     // Crear nuevo ejercicio
-                    var nuevoEjercicio = CrearNuevoEjercicioAsync(
+                    var nuevoEjercicio = CrearNuevoEjercicio(
                         ejercicioJson, grupoMuscularId, musculoPrimarioId,
                         musculosInstanciasDic,musculosDict);
 
@@ -395,7 +491,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 }
             }
         }
-        private Ejercicio CrearNuevoEjercicioAsync(EjercicioDto ejercicioJson, int GrupoMuscularId, int musculoPrimarioId, 
+        private Ejercicio CrearNuevoEjercicio(EjercicioDto ejercicioJson, int GrupoMuscularId, int musculoPrimarioId, 
             Dictionary<int, Musculos> musculosInstanciasDic, Dictionary<string,int> musculosDict)
         {
             var nuevoEjercicio = new Ejercicio
@@ -434,7 +530,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             }            
             return nuevoEjercicio;
         }
-        private Dictionary<string, int> ProcesarMusculosAsync(List<string> musculosJson, ImportResultDTO resultado, Dictionary<string, int> musculosDb)
+        private Dictionary<string, int> ProcesarMusculos(List<string> musculosJson, ImportResultDTO resultado, Dictionary<string, int> musculosDb)
         {
             var dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
@@ -463,7 +559,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
 
             return dict;
         }
-        private Dictionary<string,int> ProcesarGruposMuscularesAsync(List<string> nombresGruposMusculares, ImportResultDTO resultado, Dictionary<string, int> gruposExistentes)
+        private Dictionary<string,int> ProcesarGruposMusculares(List<string> nombresGruposMusculares, ImportResultDTO resultado, Dictionary<string, int> gruposExistentes)
         {
             var dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
@@ -503,7 +599,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(ejercicioImport.GrupoMuscular.Nombre))
+            if (ejercicioImport.GrupoMuscular == null || string.IsNullOrWhiteSpace(ejercicioImport.GrupoMuscular.Nombre))
             {
                 resultado.Errores.Add(new ImportErrorDTO
                 {
@@ -564,10 +660,20 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             if (string.IsNullOrWhiteSpace(nombre))
                 return string.Empty;
 
-            // Normaliza espacios múltiples + unicode
+            // Normaliza espacios múltiples
             var limpio = Regex.Replace(nombre, @"\s+", " ");
 
-            return limpio.Trim().ToLowerInvariant();
+            // Descompone caracteres Unicode y elimina marcas diacríticas (tildes, etc.)
+            var descompuesto = limpio.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder(descompuesto.Length);
+            foreach (var c in descompuesto)
+            {
+                var cat = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (cat != UnicodeCategory.NonSpacingMark)
+                    sb.Append(c);
+            }
+
+            return sb.ToString().Trim().ToLowerInvariant();
         }
     }
 }

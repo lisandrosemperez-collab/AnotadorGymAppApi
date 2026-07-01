@@ -2,7 +2,6 @@
 using AnotadorGymAppApi.Features.Ejercicios;
 using AnotadorGymAppApi.Features.Rutinas;
 using AnotadorGymAppApi.Features.Usuarios;
-using AnotadorGymAppApi.Features.Usuarios.DTO;
 using AnotadorGymAppApi.Infrastructure.Cache;
 using AnotadorGymAppApi.Infrastructure.Context;
 using AnotadorGymAppApi.Infrastructure.Security;
@@ -15,6 +14,7 @@ using System.Diagnostics;
 using System.Text;
 using static System.Net.WebRequestMethods;
 using Microsoft.AspNetCore.HttpOverrides;
+using AnotadorGymApp.Api.Features.Usuarios;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,7 +33,10 @@ builder.Services.AddLogging(logging =>
     logging.AddDebug();
     logging.SetMinimumLevel(LogLevel.Debug);
 });
-builder.Services.AddEndpointsApiExplorer();    
+builder.Services.AddEndpointsApiExplorer();
+
+var cs = builder.Configuration.GetConnectionString("AzureSqlConnection");
+Console.WriteLine($"ConnectionString: {cs}");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {     

@@ -19,6 +19,7 @@ namespace AnotadorGymAppApi.Infrastructure.Security
 
             var claims = new ClaimsIdentity(new[]
             {
+                new Claim(ClaimTypes.NameIdentifier, Usuario.UsuarioId.ToString()),
                 new Claim(ClaimTypes.Name,Usuario.UserName),
                 new Claim(ClaimTypes.Email,Usuario.Email),
                 new Claim(ClaimTypes.Role,Usuario.Rol),
@@ -36,7 +37,6 @@ namespace AnotadorGymAppApi.Infrastructure.Security
             var token = tokenHandler.CreateJwtSecurityToken(tokenDescriptor);
 
             return tokenHandler.WriteToken(token);
-
         }
     }
 }

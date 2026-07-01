@@ -1,4 +1,7 @@
-﻿using AnotadorGymAppApi.Domain.Entities.Usuario;
+﻿using AnotadorGymApp.Api.Features.Usuarios;
+using AnotadorGymApp.Api.Features.Usuarios.DTO;
+using AnotadorGymApp.Api.Features.Usuarios.Results;
+using AnotadorGymAppApi.Domain.Entities.Usuario;
 using AnotadorGymAppApi.Features.Usuarios.DTO;
 using AnotadorGymAppApi.Infrastructure.Context;
 using AnotadorGymAppApi.Infrastructure.Security;
@@ -14,11 +17,11 @@ namespace AnotadorGymAppApi.Features.Usuarios
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class AuthController : ControllerBase
+    public class UsuarioAuthController : ControllerBase
     {
         private readonly IJwtProvider _jwtProvider;
         private readonly IUsuarioService _usuarioService;
-        public AuthController(IJwtProvider jwtProvider, IUsuarioService usuarioService)
+        public UsuarioAuthController(IJwtProvider jwtProvider, IUsuarioService usuarioService)
         {
             _jwtProvider = jwtProvider;
             _usuarioService = usuarioService;
@@ -32,23 +35,29 @@ namespace AnotadorGymAppApi.Features.Usuarios
         /// que incluye los permisos (Roles) del usuario para acceder a rutas protegidas.                
         /// </remarks>
         /// <returns>Un token JWT firmado si la operación es exitosa.</returns>
-        /// <response code="200">Retorna el token generado correctamente.</response>
-        /// <response code="401">Si el nombre de usuario o la contraseña no coinciden.</response>
+        /// <response code="200">Login exitoso.</response>
+        /// <response code="401">Usuario no encontrado o contraseña incorrecta.</response>
+        /// <response code="500">Error interno del servidor.</response>
         [HttpPost("login")]
-        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> Login([FromBody] UsuarioDto request)
-        {
-            var usuario = await _usuarioService.ValidarUsuario(request);
+        [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(AuthResult), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(AuthResult), StatusCodes.Status500InternalServerError)]
 
-            if (usuario == null)
+        public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
+        {
+            var resultado = await _usuarioService.LoginUsuario(request);
+
+            if (!resultado.Success)
             {
-                return Unauthorized(new { message = "Usuario o contraseña incorrectos" });
+                return resultado.Error switch
+                {
+                    AuthError.UsuarioNoExiste => Unauthorized(resultado),
+                    AuthError.ContraseñaIncorrecta => Unauthorized(resultado),
+                    _ => StatusCode(StatusCodes.Status500InternalServerError, resultado)
+                };
             }
 
-            var token = _jwtProvider.GenerarJwtToken(usuario);
-
-            return Ok(new { tokenString = token });
+            return Ok(resultado);            
         }
 
         /// <summary>
@@ -99,6 +108,39 @@ namespace AnotadorGymAppApi.Features.Usuarios
             var token = _jwtProvider.GenerarJwtToken(usuario);                        
 
             return Ok(new { tokenString = token });
+        }
+
+        /// <summary>
+        /// Registra un nuevo usuario en el sistema.
+        /// </summary>
+        /// <param name="request">Datos del usuario a registrar.</param>
+        /// <returns>Resultado de la operación de registro.</returns>
+        /// <response code="201">Usuario registrado correctamente.</response>
+        /// <response code="409">El usuario ya existe.</response>
+        /// <response code="500">Error interno del servidor.</response>
+        [ProducesResponseType(typeof(AuthResult), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(AuthResult), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(AuthResult), StatusCodes.Status500InternalServerError)]
+
+        [HttpPost("login/registro")]
+        public async Task<IActionResult> Registro([FromBody] RegistroRequestDto request)
+        {
+            // Guardar el usuario en la base de datos
+            var resultado = await _usuarioService.RegistrarUsuario(request);
+
+            if (!resultado.Success)
+            {
+                return resultado.Error switch
+                {
+                    AuthError.UsuarioYaExiste => Conflict(resultado),
+                    _ => StatusCode(StatusCodes.Status500InternalServerError, resultado)
+                };
+            }
+
+            return CreatedAtAction(
+                nameof(Login),
+                new { userName = resultado.UserName },
+                resultado);
         }
     }
 }
