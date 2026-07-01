@@ -7,7 +7,7 @@ obj/
 
 # Configuraci�n local
 appsettings.Development.json
-# appsettings.json  # (descomentar si contiene secretos)
+appsettings.json
 
 # Publicaci�n Azure
 **/Properties/PublishProfiles/

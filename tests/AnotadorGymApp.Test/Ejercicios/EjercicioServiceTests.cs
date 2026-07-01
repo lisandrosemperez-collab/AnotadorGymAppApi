@@ -15,7 +15,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace AnotadorGymApp.Test.Ejericios
+namespace AnotadorGymApp.Test.Ejercicios
 {
     public class EjercicioServiceTests
     {

@@ -177,6 +177,14 @@ namespace AnotadorGymAppApi.Features.Usuarios
                 return authResult;
             }          
 
+            if (usuario.Rol == "Invitado")
+            {
+                authResult.Success = false;
+                authResult.Message = "No se puede eliminar un usuario con rol Invitado";
+                authResult.Error = AuthError.SinPermisos;
+                return authResult;
+            }        
+
             _appDbContext.Usuarios.Remove(usuario);
             await _appDbContext.SaveChangesAsync();
 
