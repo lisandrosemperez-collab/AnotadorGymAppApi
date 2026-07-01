@@ -38,7 +38,7 @@ namespace AnotadorGymAppApi.Features.Usuarios
         /// <response code="200">Login exitoso.</response>
         /// <response code="401">Usuario no encontrado o contraseña incorrecta.</response>
         /// <response code="500">Error interno del servidor.</response>
-        [HttpPost("login")]
+        [HttpPost()]
         [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(AuthResult), StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(AuthResult), StatusCodes.Status500InternalServerError)]
@@ -95,7 +95,7 @@ namespace AnotadorGymAppApi.Features.Usuarios
         /// <returns>Un token JWT válido para autenticación como Invitado.</returns>
         /// <response code="200">Token generado correctamente.</response>
         /// <response code="401">No se pudo obtener el usuario Invitado.</response>
-        [HttpPost("login/invitado")]
+        [HttpPost()]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         public async Task<IActionResult> LoginInvitado()
         {
@@ -121,8 +121,7 @@ namespace AnotadorGymAppApi.Features.Usuarios
         [ProducesResponseType(typeof(AuthResult), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(AuthResult), StatusCodes.Status409Conflict)]
         [ProducesResponseType(typeof(AuthResult), StatusCodes.Status500InternalServerError)]
-
-        [HttpPost("login/registro")]
+        [HttpPost()]
         public async Task<IActionResult> Registro([FromBody] RegistroRequestDto request)
         {
             // Guardar el usuario en la base de datos
@@ -141,6 +140,32 @@ namespace AnotadorGymAppApi.Features.Usuarios
                 nameof(Login),
                 new { userName = resultado.UserName },
                 resultado);
+        }
+
+        /// <summary>
+        /// Elimina un usuario del sistema.
+        /// </summary>
+        /// <param name="id">ID del usuario a eliminar.</param>
+        /// <returns>Resultado de la operación de eliminación.</returns>
+        /// <response code="200">Usuario eliminado correctamente.</response>
+        /// <response code="404">Usuario no encontrado.</response>
+        [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(AuthResult), StatusCodes.Status404NotFound)]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> EliminarUsuario(int id)
+        {
+            var resultado = await _usuarioService.EliminarUsuario(id);
+            if (!resultado.Success)
+            {
+                return resultado.Error switch
+                {
+                    AuthError.UsuarioNoExiste => NotFound(resultado),
+                    AuthError.SinPermisos => Forbid(),
+                    _ => StatusCode(StatusCodes.Status500InternalServerError, resultado)
+                };                
+            }
+            
+            return Ok(resultado);
         }
     }
 }

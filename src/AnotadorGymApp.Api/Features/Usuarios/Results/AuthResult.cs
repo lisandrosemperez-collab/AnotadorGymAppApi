@@ -20,6 +20,7 @@ namespace AnotadorGymApp.Api.Features.Usuarios.Results
         UsuarioYaExiste,
         ContraseñaIncorrecta,
         UsuarioNoExiste,
+        SinPermisos,
         EmailNoExiste,
         EmailYaExiste,
         InternalError

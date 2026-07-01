@@ -10,5 +10,6 @@ namespace AnotadorGymApp.Api.Features.Usuarios
         Task<Usuario?> ObtenerUsuarioInvitado();
         Task <AuthResult> RegistrarUsuario(RegistroRequestDto nuevoUsuarioDto);        
         public Task<AuthResult> LoginUsuario(LoginRequestDto request);
+        Task <AuthResult> EliminarUsuario(int id);
     }
 }

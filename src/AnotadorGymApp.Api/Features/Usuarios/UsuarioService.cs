@@ -154,5 +154,36 @@ namespace AnotadorGymAppApi.Features.Usuarios
                 return false;
             }
         }
+
+        // Método para eliminar un usuario por su ID, si Rol de Usuario es admin no eliminarlo
+        public async Task<AuthResult> EliminarUsuario(int id)
+        {
+            var authResult = new AuthResult();
+
+            var usuario = await _appDbContext.Usuarios.FindAsync(id);
+            if (usuario == null)
+            {
+                authResult.Success = false;
+                authResult.Message = "Usuario no encontrado";
+                authResult.Error = AuthError.UsuarioNoExiste;
+                return authResult;
+            }
+
+            if (usuario.Rol == "Admin")
+            {
+                authResult.Success = false;
+                authResult.Message = "No se puede eliminar un usuario con rol Admin";
+                authResult.Error = AuthError.SinPermisos;
+                return authResult;
+            }          
+
+            _appDbContext.Usuarios.Remove(usuario);
+            await _appDbContext.SaveChangesAsync();
+
+            authResult.Success = true;
+            authResult.Message = "Usuario eliminado exitosamente";
+            authResult.Error = AuthError.Ninguno;
+            return authResult;
+        }
     }
-} 
+}
