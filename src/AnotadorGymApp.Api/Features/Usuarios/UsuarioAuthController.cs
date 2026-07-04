@@ -149,8 +149,10 @@ namespace AnotadorGymAppApi.Features.Usuarios
         /// <returns>Resultado de la operación de eliminación.</returns>
         /// <response code="200">Usuario eliminado correctamente.</response>
         /// <response code="404">Usuario no encontrado.</response>
+        /// <response code="403">No se tiene permiso para eliminar el usuario.</response>
         [ProducesResponseType(typeof(AuthResult), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(AuthResult), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(AuthResult), StatusCodes.Status403Forbidden)]
         [HttpDelete("{id}")]
         public async Task<IActionResult> EliminarUsuario(int id)
         {

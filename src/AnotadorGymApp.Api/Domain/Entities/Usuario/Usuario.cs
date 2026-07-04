@@ -1,4 +1,6 @@
-﻿namespace AnotadorGymAppApi.Domain.Entities.Usuario
+﻿using AnotadorGymApp.Api.Domain.Entities.Entrenamiento;
+
+namespace AnotadorGymAppApi.Domain.Entities.Usuario
 {
     public class Usuario
     {
@@ -8,6 +10,6 @@
         public string? PasswordHash { get; set; }
         public string? GoogleId { get; set; }
         public string Rol {  get; set; }
-
+        public ICollection<Entrenamiento> Entrenamientos { get; set; } = new List<Entrenamiento>();
     }
 }

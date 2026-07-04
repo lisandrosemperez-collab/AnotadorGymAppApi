@@ -2,6 +2,7 @@
 using AnotadorGymAppApi.Domain.Entities.Ejercicio;
 using AnotadorGymAppApi.Domain.Entities.Rutina;
 using AnotadorGymAppApi.Domain.Entities.Usuario;
+using AnotadorGymApp.Api.Domain.Entities.Entrenamiento;
 
 
 namespace AnotadorGymAppApi.Infrastructure.Context
@@ -105,7 +106,7 @@ namespace AnotadorGymAppApi.Infrastructure.Context
                 rutinaSerie.HasOne(rs => rs.RutinaEjercicio)
                     .WithMany(rs => rs.Series)
                     .HasForeignKey(rs => rs.RutinaEjercicioId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    .OnDelete(DeleteBehavior.Cascade);                
             });
 
             modelBuilder.Entity<Ejercicio>(ejercicio => { 
@@ -174,6 +175,85 @@ namespace AnotadorGymAppApi.Infrastructure.Context
                 .WithMany(e => e.MusculosSecundarios)
                 .UsingEntity(j => j.ToTable("EjercicioMusculoSecundarios"));
                 
+            });
+
+            modelBuilder.Entity<Entrenamiento>(entrenamiento =>
+            {
+                entrenamiento.HasKey(e => e.EntrenamientoId);
+
+                entrenamiento.Property(e => e.EntrenamientoId)
+                    .ValueGeneratedOnAdd();
+
+                entrenamiento.Property(e => e.Fecha)
+                    .IsRequired();                
+
+                entrenamiento.Property(e => e.Notas)
+                    .HasMaxLength(1000);
+
+                entrenamiento.HasIndex(e => new
+                {
+                    e.UsuarioId,
+                    e.Fecha
+                });
+
+                entrenamiento.HasOne(e => e.Usuario)
+                    .WithMany(u => u.Entrenamientos)
+                    .HasForeignKey(e => e.UsuarioId)
+                    .OnDelete(DeleteBehavior.Cascade);                
+
+                entrenamiento.HasMany(e => e.Ejercicios)
+                    .WithOne(ee => ee.Entrenamiento)
+                    .HasForeignKey(ee => ee.EntrenamientoId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<EjercicioEntrenado>(ejercicioEntrenado =>
+            {
+                ejercicioEntrenado.HasKey(ee => ee.EjercicioEntrenadoId);
+                ejercicioEntrenado.Property(ee => ee.EjercicioEntrenadoId)
+                    .ValueGeneratedOnAdd();
+
+                ejercicioEntrenado.Property(ee => ee.Orden)
+                    .IsRequired();
+
+                ejercicioEntrenado.Property(ee => ee.Notas)
+                    .HasMaxLength(1000);
+
+                ejercicioEntrenado.HasIndex(ee => ee.EntrenamientoId);
+                ejercicioEntrenado.HasIndex(ee => ee.EjercicioId);
+
+                ejercicioEntrenado.HasOne(ee => ee.Entrenamiento)
+                    .WithMany(e => e.Ejercicios)
+                    .HasForeignKey(ee => ee.EntrenamientoId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                ejercicioEntrenado.HasOne(ee => ee.Ejercicio)
+                    .WithMany()
+                    .HasForeignKey(ee => ee.EjercicioId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                ejercicioEntrenado.HasMany(ee => ee.Series)
+                    .WithOne(s => s.EjercicioEntrenado)
+                    .HasForeignKey(s => s.EjercicioEntrenadoId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<SerieEntrenada>(serieEntrenada =>
+            {
+                serieEntrenada.HasKey(s => s.SerieEntrenadaId);
+
+                serieEntrenada.Property(s => s.SerieEntrenadaId)
+                    .ValueGeneratedOnAdd();
+
+                serieEntrenada.Property(s => s.Peso)
+                    .HasPrecision(5, 2);
+
+                serieEntrenada.HasIndex(s => s.EjercicioEntrenadoId);
+
+                serieEntrenada.HasOne(s => s.EjercicioEntrenado)
+                    .WithMany(ee => ee.Series)
+                    .HasForeignKey(s => s.EjercicioEntrenadoId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }   
     }
