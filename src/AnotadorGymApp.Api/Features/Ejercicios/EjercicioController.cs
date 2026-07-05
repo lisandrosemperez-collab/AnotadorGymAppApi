@@ -307,7 +307,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         /// <response code="401">Usuario no autenticado.</response>
         /// <response code="403">Usuario autenticado sin permisos suficientes.</response>
         /// <response code="500">Error interno del servidor.</response>
-        [Authorize(Roles = "Admin,Invitado")]
+        [Authorize(Roles = "Admin,Invitado,Usuario")]
         [HttpGet("exportar")]
         public async Task<ActionResult<IEnumerable<EjercicioDto>>> GetEjercicios()
         {
@@ -330,7 +330,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
         /// <response code="200">Listado obtenido correctamente.</response>
         /// <response code="400">Parámetros inválidos.</response>
         /// <response code="500">Error interno del servidor.</response>
-        [Authorize(Roles = "Admin,Invitado")]
+        [Authorize(Roles = "Admin,Invitado,Usuario")]
         [HttpGet]        
         public async Task<ActionResult<PagedResult<EjercicioDto>>> GetEjercicios([FromQuery] PaginationParams pagination)
         {
@@ -348,7 +348,7 @@ namespace AnotadorGymAppApi.Features.Ejercicios
             });
         }
 
-        [Authorize(Roles = "Admin,Invitado")]
+        [Authorize(Roles = "Admin,Invitado,Usuario")]
         [HttpGet("{id}")]
         public async Task<ActionResult<EjercicioDto>> GetPorId(int id)
         {

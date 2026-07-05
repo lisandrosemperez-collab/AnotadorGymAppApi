@@ -36,8 +36,10 @@ namespace AnotadorGymAppApi.Infrastructure.Context
 
                 entity.Property(u => u.PasswordHash).IsRequired().HasMaxLength(255);
                 entity.Property(u => u.Rol).IsRequired().HasDefaultValue("invitado");
-
+                
             });
+
+            #region Rutina
 
             modelBuilder.Entity<Rutina>(r =>
             {
@@ -108,6 +110,8 @@ namespace AnotadorGymAppApi.Infrastructure.Context
                     .HasForeignKey(rs => rs.RutinaEjercicioId)
                     .OnDelete(DeleteBehavior.Cascade);                
             });
+
+            #endregion
 
             modelBuilder.Entity<Ejercicio>(ejercicio => { 
                 ejercicio.HasKey(e => e.EjercicioId);
