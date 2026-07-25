@@ -12,6 +12,7 @@ namespace AnotadorGymApp.Api.Features.Usuarios.Results
         public string UserName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Rol { get; set; } = string.Empty;
+        public int? RutinaActivaId { get; set; }
     }
 
     public enum AuthError

@@ -103,6 +103,7 @@ namespace AnotadorGymAppApi.Features.Usuarios
             authResult.Success = true;
             authResult.Message = "Login exitoso";
             authResult.UserName = existeUsuario.UserName;
+            authResult.RutinaActivaId = existeUsuario.RutinaActivaId;
 
             return authResult;
         }        
