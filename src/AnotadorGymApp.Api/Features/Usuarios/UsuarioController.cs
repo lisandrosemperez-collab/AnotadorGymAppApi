@@ -10,7 +10,7 @@ namespace AnotadorGymApp.Api.Features.Usuarios
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(Roles = "Admin,User")]
     public class UsuarioController : Controller
     {
         private int UsuarioId =>
