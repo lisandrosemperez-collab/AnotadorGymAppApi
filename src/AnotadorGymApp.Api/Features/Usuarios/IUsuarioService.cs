@@ -1,5 +1,6 @@
 ﻿using AnotadorGymApp.Api.Features.Usuarios.DTO;
 using AnotadorGymApp.Api.Features.Usuarios.Results;
+using AnotadorGymAppApi.Domain.Entities.Rutina;
 using AnotadorGymAppApi.Domain.Entities.Usuario;
 using AnotadorGymAppApi.Features.Usuarios.DTO;
 
@@ -11,5 +12,7 @@ namespace AnotadorGymApp.Api.Features.Usuarios
         Task <AuthResult> RegistrarUsuario(RegistroRequestDto nuevoUsuarioDto);        
         public Task<AuthResult> LoginUsuario(LoginRequestDto request);
         Task <AuthResult> EliminarUsuario(int id);
+        Task<int?> ObtenerRutinaActiva(int id);
+        Task<UsuarioResult> GuardarRutinaActiva(int usuarioId,int id);
     }
 }

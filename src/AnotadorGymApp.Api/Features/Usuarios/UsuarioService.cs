@@ -1,6 +1,7 @@
 ﻿using AnotadorGymApp.Api.Features.Usuarios;
 using AnotadorGymApp.Api.Features.Usuarios.DTO;
 using AnotadorGymApp.Api.Features.Usuarios.Results;
+using AnotadorGymAppApi.Domain.Entities.Rutina;
 using AnotadorGymAppApi.Domain.Entities.Usuario;
 using AnotadorGymAppApi.Features.Usuarios.DTO;
 using AnotadorGymAppApi.Infrastructure.Context;
@@ -193,6 +194,43 @@ namespace AnotadorGymAppApi.Features.Usuarios
             authResult.Message = "Usuario eliminado exitosamente";
             authResult.Error = AuthError.Ninguno;
             return authResult;
+        }
+
+        public async Task<int?> ObtenerRutinaActiva(int usuarioId)
+        {              
+            return await _appDbContext.Usuarios
+                .Where(u => u.UsuarioId == usuarioId)   
+                .Select(u => u.RutinaActivaId)
+                .FirstOrDefaultAsync();                        
+        }
+
+        public async Task<UsuarioResult> GuardarRutinaActiva(int usuarioId, int id)
+        {
+            var usuario = await _appDbContext.Usuarios
+                .FirstOrDefaultAsync(u => u.UsuarioId == usuarioId);
+
+            var UsuarioResult = new UsuarioResult();
+            
+            if (usuario == null) {
+                UsuarioResult.Message = "Usuario No Encontreado";
+                UsuarioResult.Success = false;
+                return UsuarioResult; 
+            }
+
+            usuario.RutinaActivaId = id;
+
+            try
+            {
+                await _appDbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                UsuarioResult.Success = false;
+                UsuarioResult.Message += ex.ToString();
+                return UsuarioResult;
+            }
+
+            return UsuarioResult;
         }
     }
 }
