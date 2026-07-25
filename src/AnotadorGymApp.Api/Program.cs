@@ -15,6 +15,8 @@ using System.Text;
 using static System.Net.WebRequestMethods;
 using Microsoft.AspNetCore.HttpOverrides;
 using AnotadorGymApp.Api.Features.Usuarios;
+using AnotadorGymApp.Api.Features.Entrenamiento;
+using System.Text.Json.Serialization;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,7 +27,13 @@ builder.Services.Configure<IISServerOptions>(options =>
     options.AllowSynchronousIO = true;
 });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter());
+    });
+
 builder.Logging.AddConsole();
 builder.Services.AddLogging(logging =>
 {
@@ -57,6 +65,7 @@ builder.Services.AddScoped<IJsonFileValidator, JsonFileValidator>();
 builder.Services.AddScoped<IJwtProvider, JwtProvider>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<ICacheService, BlobCacheService>();
+builder.Services.AddScoped<IEntrenamientoService, EntrenamientoService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

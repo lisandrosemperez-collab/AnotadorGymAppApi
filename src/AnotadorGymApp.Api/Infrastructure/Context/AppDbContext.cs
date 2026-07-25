@@ -22,6 +22,9 @@ namespace AnotadorGymAppApi.Infrastructure.Context
         public DbSet<RutinaSerie> RutinaSeries { get; set; }
         public DbSet<Musculos> Musculos { get; set; }
         public DbSet<GrupoMuscular> GrupoMusculares { get; set; }
+        public DbSet<Entrenamiento> Entrenamientos { get; set; }
+        public DbSet<EjercicioEntrenado> EjerciciosEntrenados { get; set; }
+        public DbSet<SerieEntrenada> SeriesEntrenadas { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -36,7 +39,12 @@ namespace AnotadorGymAppApi.Infrastructure.Context
 
                 entity.Property(u => u.PasswordHash).IsRequired().HasMaxLength(255);
                 entity.Property(u => u.Rol).IsRequired().HasDefaultValue("invitado");
-                
+
+                entity.HasOne(u => u.RutinaActiva)
+                    .WithMany()
+                    .HasForeignKey(u => u.RutinaActivaId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
             });
 
             #region Rutina
