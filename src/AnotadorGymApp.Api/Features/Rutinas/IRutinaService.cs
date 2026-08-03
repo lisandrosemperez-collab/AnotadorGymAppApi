@@ -8,8 +8,9 @@ namespace AnotadorGymAppApi.Features.Rutinas
     public interface IRutinaService
     {
         public Task<RutinaListResult> GetAllRutinas();
-        public Task<RutinaDto> GetRutina(string nombre);        
+        public Task<RutinaDto?> GetRutina(string nombre);        
         Task<bool> EliminarRutinaAsync(int rutinaId);
         public Task<bool> ActualizarRutinaAsync(int rutinaId, ActualizarRutinaDto dto);
+        public Task<RutinaDto?> GetRutinaById(int id);
     }
 }

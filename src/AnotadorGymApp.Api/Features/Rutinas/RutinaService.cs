@@ -71,7 +71,7 @@ namespace AnotadorGymAppApi.Features.Rutinas
             _logger.LogInformation("Rutinas en Cache: {Cache}", desdeCache);
             return new RutinaListResult { Items = rutinas, TotalCount = totalCount,DesdeCache = desdeCache };
         }
-        public async Task<RutinaDto> GetRutina(string nombre)
+        public async Task<RutinaDto?> GetRutina(string nombre)
         {
             var rutinasQuery = _DbContext.Rutinas.AsNoTracking()
                 .Where(r => r.Nombre == nombre);           
@@ -164,6 +164,15 @@ namespace AnotadorGymAppApi.Features.Rutinas
             await _DbContext.SaveChangesAsync();
 
             return true;
+        }
+
+        public async Task<RutinaDto?> GetRutinaById(int id)
+        {
+            return await ProjectToDto(
+                _DbContext.Rutinas
+                    .AsNoTracking()
+                    .Where(r => r.RutinaId == id))
+            .SingleOrDefaultAsync();
         }
 
         #endregion

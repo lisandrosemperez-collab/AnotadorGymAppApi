@@ -372,13 +372,41 @@ namespace AnotadorGymAppApi.Features.Rutinas
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [Authorize(Roles = "Admin,Invitado,Usuario")]
-        [HttpGet("{nombre}")]
+        [HttpGet("nombre/{nombre}")]
         public async Task<ActionResult<RutinaDto>> GetRutina(string nombre)
         {
             if (string.IsNullOrWhiteSpace(nombre))
                 return BadRequest();
 
             var rutina = await _rutinaService.GetRutina(nombre);
+
+            if (rutina is null)
+                return NotFound();
+
+            return Ok(rutina);
+        }
+
+        //Obtener Rutina por el id
+        /// <summary>
+        /// Obtiene una rutina específica por su ID.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns>
+        /// Un objeto <see cref="RutinaDto"/> si existe.
+        /// </returns>
+        /// <response code="200">Rutina encontrada.</response>
+        /// <response code="404">No se encontró una rutina con el nombre especificado.</response>
+        /// <response code="500">Error interno del servidor.</response>
+        [ProducesResponseType(typeof(RutinaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [Authorize(Roles = "Admin,Usuario")]
+        [HttpGet("id/{id}")]
+        public async Task<ActionResult<RutinaDto>> GetRutinaById(int id)
+        {
+            if(id == 0) return BadRequest();
+
+            var rutina = await _rutinaService.GetRutinaById(id);
 
             if (rutina is null)
                 return NotFound();
