@@ -204,6 +204,12 @@ namespace AnotadorGymAppApi.Features.Usuarios
                     RutinaActivaId = u.RutinaActivaId
                 })
                 .FirstOrDefaultAsync();
+            
+            if (usuarioResult != null)
+            {
+                usuarioResult.Success = true;
+                usuarioResult.Message = "Rutina Activa Obtenida Correctamente";
+            }
 
             return usuarioResult;
         }
