@@ -12,7 +12,7 @@ namespace AnotadorGymApp.Api.Features.Usuarios
         Task <AuthResult> RegistrarUsuario(RegistroRequestDto nuevoUsuarioDto);        
         public Task<AuthResult> LoginUsuario(LoginRequestDto request);
         Task <AuthResult> EliminarUsuario(int id);
-        Task<int?> ObtenerRutinaActiva(int id);
+        Task<UsuarioResult> ObtenerRutinaActiva(int id);
         Task<UsuarioResult> GuardarRutinaActiva(int usuarioId,int id);
     }
 }

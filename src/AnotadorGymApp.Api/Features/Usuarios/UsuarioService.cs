@@ -196,12 +196,17 @@ namespace AnotadorGymAppApi.Features.Usuarios
             return authResult;
         }
 
-        public async Task<int?> ObtenerRutinaActiva(int usuarioId)
+        public async Task<UsuarioResult?> ObtenerRutinaActiva(int usuarioId)
         {              
-            return await _appDbContext.Usuarios
-                .Where(u => u.UsuarioId == usuarioId)   
-                .Select(u => u.RutinaActivaId)
-                .FirstOrDefaultAsync();                        
+            var usuarioResult = await _appDbContext.Usuarios
+                .Where(u => u.UsuarioId == usuarioId)
+                .Select(u => new UsuarioResult
+                {
+                    RutinaActivaId = u.RutinaActivaId
+                })
+                .FirstOrDefaultAsync();
+
+            return usuarioResult;
         }
 
         public async Task<UsuarioResult> GuardarRutinaActiva(int usuarioId, int id)
@@ -222,6 +227,8 @@ namespace AnotadorGymAppApi.Features.Usuarios
             try
             {
                 await _appDbContext.SaveChangesAsync();
+                UsuarioResult.Message = "Rutina Activa Guardada Correctamente";
+                UsuarioResult.Success = true;
             }
             catch (Exception ex)
             {

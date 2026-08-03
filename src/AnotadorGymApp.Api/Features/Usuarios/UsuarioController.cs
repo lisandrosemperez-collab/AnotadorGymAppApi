@@ -27,25 +27,25 @@ namespace AnotadorGymApp.Api.Features.Usuarios
         [HttpGet("rutina-activa")]
         public async Task<IActionResult> ObtenerRutinaActiva()
         {
-            var rutinaId = await _usuarioService.ObtenerRutinaActiva(UsuarioId);
+            var usuarioResult = await _usuarioService.ObtenerRutinaActiva(UsuarioId);
 
-            if (rutinaId == null)
-                return NotFound();
+            if (!usuarioResult.Success)
+                return NotFound(usuarioResult);
 
-            return Ok(rutinaId);
+            return Ok(usuarioResult);
         }
 
         [HttpPut("rutina-activa/{rutinaId:int}")]
         public async Task<IActionResult> GuardarRutina(int rutinaId)
         {
-            var result = await _usuarioService.GuardarRutinaActiva(UsuarioId, rutinaId);
+            var usuarioResult = await _usuarioService.GuardarRutinaActiva(UsuarioId, rutinaId);
             
-            if (!result.Success)
+            if (!usuarioResult.Success)
             {
-                return BadRequest(result);
+                return BadRequest(usuarioResult);
             }
 
-            return Ok(result);
+            return Ok(usuarioResult);
         }
     }
 }
