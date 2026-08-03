@@ -29,7 +29,7 @@ namespace AnotadorGymApp.Api.Features.Usuarios
         {
             var usuarioResult = await _usuarioService.ObtenerRutinaActiva(UsuarioId);
 
-            if (!usuarioResult.Success)
+            if (usuarioResult.Success == false)
                 return NotFound(usuarioResult);
 
             return Ok(usuarioResult);
@@ -40,7 +40,7 @@ namespace AnotadorGymApp.Api.Features.Usuarios
         {
             var usuarioResult = await _usuarioService.GuardarRutinaActiva(UsuarioId, rutinaId);
             
-            if (!usuarioResult.Success)
+            if (usuarioResult.Success == false)
             {
                 return BadRequest(usuarioResult);
             }
