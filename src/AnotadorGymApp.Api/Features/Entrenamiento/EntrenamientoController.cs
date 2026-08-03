@@ -8,7 +8,7 @@ namespace AnotadorGymAppApi.Features.Entrenamiento
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin,User")]
+    [Authorize(Roles = "Admin,Usuario")]
     public class EntrenamientoController : ControllerBase
     {
         private readonly IEntrenamientoService _service;

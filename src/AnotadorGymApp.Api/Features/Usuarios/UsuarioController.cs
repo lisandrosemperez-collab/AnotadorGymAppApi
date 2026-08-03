@@ -10,7 +10,7 @@ namespace AnotadorGymApp.Api.Features.Usuarios
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin,User")]
+    [Authorize(Roles = "Admin,Usuario")]
     public class UsuarioController : Controller
     {
         private int UsuarioId =>
@@ -39,12 +39,13 @@ namespace AnotadorGymApp.Api.Features.Usuarios
         public async Task<IActionResult> GuardarRutina(int rutinaId)
         {
             var result = await _usuarioService.GuardarRutinaActiva(UsuarioId, rutinaId);
+            
             if (!result.Success)
             {
                 return BadRequest(result);
             }
 
-            return NoContent();
+            return Ok(result);
         }
     }
 }
