@@ -51,7 +51,7 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             return true;
         }
 
-        public async Task<int> CrearAsync(EntrenamientoDto dto, int usuarioId, CancellationToken cancellationToken)
+        public async Task<EntrenamientoDto> CrearAsync(EntrenamientoDto dto, int usuarioId, CancellationToken cancellationToken)
         {
             var entidad = new Domain.Entities.Entrenamiento.Entrenamiento
             {
@@ -87,7 +87,7 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             _db.Entrenamientos.Add(entidad);
             await _db.SaveChangesAsync(cancellationToken);
 
-            return entidad.EntrenamientoId;
+            return MapToDto(entidad);
         }
 
 

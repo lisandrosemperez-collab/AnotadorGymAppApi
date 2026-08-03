@@ -27,11 +27,11 @@ namespace AnotadorGymAppApi.Features.Entrenamiento
         /// El servicio devuelve el id creado.
         /// </summary>
         [HttpPost]
-        public async Task<ActionResult<int>> Crear([FromBody] EntrenamientoDto dto, CancellationToken cancellationToken)
+        public async Task<ActionResult<EntrenamientoDto>> Crear([FromBody] EntrenamientoDto dto, CancellationToken cancellationToken)
         {            
-            var id = await _service.CrearAsync(dto, UsuarioId, cancellationToken);
+            var entrenamiento = await _service.CrearAsync(dto, UsuarioId, cancellationToken);
 
-            return CreatedAtAction(nameof(ObtenerPorId), new { id }, id);
+            return Ok(entrenamiento);
         }
 
         /// <summary>
