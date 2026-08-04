@@ -48,15 +48,29 @@ namespace AnotadorGymAppApi.Features.Entrenamiento
         }
 
         /// <summary>
-        /// Obtiene todos los entrenamientos de un usuario.
-        /// Ruta: GET /api/entrenamientos/mis-entrenamientos/{usuarioId}
+        /// Obtiene todos los entrenamientos de un usuario.        
         /// </summary>
+        /// <remarks>
+        /// Obtiene una lista de todos los entrenamientos asociados al usuario autenticado.
+        /// </remarks>
         [HttpGet("mis-entrenamientos")]
         public async Task<ActionResult<IEnumerable<EntrenamientoDto>>> ObtenerPorUsuario(CancellationToken cancellationToken)
         {
             var list = await _service.ObtenerPorUsuarioAsync(UsuarioId, cancellationToken);
                                     
             return Ok(list);
+        }
+
+        //Obtiene el entrenamiento del dia de hoy (si existe) para el usuario logueado
+        /// <summary>
+        /// Obtiene el entrenamiento del día de hoy (si existe) para el usuario logueado.
+        /// </summary>        
+        [HttpGet("entrenamiento-del-dia")]
+        public async Task<ActionResult<EntrenamientoDto>> ObtenerEntrenamientoDelDia(CancellationToken cancellationToken)
+        {
+            var ent = await _service.ObtenerEntrenamientoDelDiaAsync(UsuarioId, cancellationToken);
+            if (ent is null) return NotFound();
+            return Ok(ent);
         }
 
         /// <summary>

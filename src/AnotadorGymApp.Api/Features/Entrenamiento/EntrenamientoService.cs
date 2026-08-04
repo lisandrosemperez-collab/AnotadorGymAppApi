@@ -56,9 +56,9 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             var entidad = new Domain.Entities.Entrenamiento.Entrenamiento
             {
                 UsuarioId = usuarioId,
-                Fecha = dto.Fecha,
-                DuracionSegundos = dto.DuracionSegundos,
-                Notas = dto.Notas
+                Fecha = DateTime.Now,                
+                Estado = EstadoEntrenamiento.EnCurso,
+                Notas = dto.Notas ?? string.Empty
             };
 
             if (dto.Ejercicios != null)
@@ -143,8 +143,21 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             return true;
         }
 
-        // Helpers
 
+        public async Task<EntrenamientoDto?> ObtenerEntrenamientoDelDiaAsync(int usuarioId, CancellationToken cancellationToken)
+        {
+            var today = DateTime.Today;
+
+            var entrenamiento = await _db.Entrenamientos
+                .Include(e => e.Ejercicios)
+                    .ThenInclude(ee => ee.Series)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.UsuarioId == usuarioId && e.Fecha.Date == today && e.Estado == EstadoEntrenamiento.EnCurso);
+
+            return entrenamiento is not null ? MapToDto(entrenamiento) : null;
+        }
+
+        // Helpers
         private static EntrenamientoDto MapToDto(Domain.Entities.Entrenamiento.Entrenamiento ent)
         {
             return new EntrenamientoDto

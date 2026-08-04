@@ -24,6 +24,7 @@ namespace AnotadorGymApp.Api.Features.Usuarios
             _usuarioService = usuarioService;
         }
 
+
         [HttpGet("rutina-activa")]
         public async Task<IActionResult> ObtenerRutinaActiva()
         {

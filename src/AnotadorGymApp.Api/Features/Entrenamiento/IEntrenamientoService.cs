@@ -9,5 +9,6 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
         Task<IEnumerable<EntrenamientoDto>> ObtenerPorUsuarioAsync(int usuarioId, CancellationToken cancellationToken);
         Task<bool> SincronizarEntrenamiento(int usuarioId, EntrenamientoDto dto, CancellationToken cancellationToken);
         Task<bool> BorrarAsync(int usuarioId,int entrenamientoId, CancellationToken cancellationToken);
+        Task<EntrenamientoDto?> ObtenerEntrenamientoDelDiaAsync(int usuarioId, CancellationToken cancellationToken);
     }
 }
