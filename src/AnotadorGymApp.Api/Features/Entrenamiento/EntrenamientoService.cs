@@ -57,7 +57,7 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             {
                 UsuarioId = usuarioId,
                 Fecha = DateTime.Now,                
-                Estado = EstadoEntrenamiento.EnCurso,
+                Completado = false,
                 Notas = dto.Notas ?? string.Empty
             };
 
@@ -152,7 +152,7 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 .Include(e => e.Ejercicios)
                     .ThenInclude(ee => ee.Series)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.UsuarioId == usuarioId && e.Fecha.Date == today && e.Estado == EstadoEntrenamiento.EnCurso);
+                .FirstOrDefaultAsync(e => e.UsuarioId == usuarioId && e.Fecha.Date == today && e.Completado == false);
 
             return entrenamiento is not null ? MapToDto(entrenamiento) : null;
         }
@@ -192,7 +192,7 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             dbEnt.Fecha = dto.Fecha;
             dbEnt.DuracionSegundos = dto.DuracionSegundos;
             dbEnt.Notas = dto.Notas;
-            dbEnt.Estado = dto.Finalizado ? EstadoEntrenamiento.Completado : EstadoEntrenamiento.EnCurso;
+            dbEnt.Completado = dto.Completado;
         }
 
         private static void SincronizarEjercicioEntrenado(EjercicioEntrenado dbEe, EjercicioEntrenadoDto eeDto)
@@ -200,7 +200,8 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             dbEe.EjercicioId = eeDto.EjercicioId;
             dbEe.Orden = eeDto.Orden;
             dbEe.Notas = eeDto.Notas;
-            
+            dbEe.Completado = eeDto.Completado;
+
             // Sincronizar series
             var dtoSeries = eeDto.Series ?? new List<SerieEntrenadaDto>();
             SincronizarSeries(dbEe, dtoSeries);

@@ -15,6 +15,7 @@ namespace AnotadorGymApp.Api.Domain.Entities.Entrenamiento
         public int Orden { get; set; }
 
         public string? Notas { get; set; }
+        public bool Completado { get; set; }
 
         public ICollection<SerieEntrenada> Series { get; set; }
             = new List<SerieEntrenada>();

@@ -14,16 +14,9 @@ namespace AnotadorGymApp.Api.Domain.Entities.Entrenamiento
         public int? DuracionSegundos { get; set; }
 
         public string? Notas { get; set; }
-        public EstadoEntrenamiento Estado { get; set; } = EstadoEntrenamiento.EnCurso;
+        public bool Completado { get; set; } = false;
 
         public ICollection<EjercicioEntrenado> Ejercicios { get; set; }
             = new List<EjercicioEntrenado>();
     }
-}
-
-public enum EstadoEntrenamiento
-{
-    EnCurso,
-    Completado,
-    Cancelado
 }
