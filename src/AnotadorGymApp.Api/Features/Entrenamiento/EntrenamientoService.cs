@@ -166,12 +166,14 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 Fecha = ent.Fecha,
                 DuracionSegundos = ent.DuracionSegundos,
                 Notas = ent.Notas,
+                Completado = ent.Completado,
                 Ejercicios = ent.Ejercicios?.Select(ee => new EjercicioEntrenadoDto
                 {
                     EjercicioEntrenadoId = ee.EjercicioEntrenadoId,
                     EjercicioId = ee.EjercicioId,
                     Orden = ee.Orden,
                     Notas = ee.Notas,
+                    Completado = ee.Completado,
                     Series = ee.Series?.Select(s => new SerieEntrenadaDto
                     {
                         SerieEntrenadaId = s.SerieEntrenadaId,
@@ -250,7 +252,8 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             {
                 EjercicioId = dto.EjercicioId,
                 Orden = dto.Orden,
-                Notas = dto.Notas
+                Notas = dto.Notas,
+                Completado = false
             };
             if (dto.Series != null)
             {

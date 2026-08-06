@@ -10,7 +10,7 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento.DTOs
         public DateTime UltimaActualizacion { get; set; }
         public int? DuracionSegundos { get; set; }
         public string? Notas { get; set; }
-        public bool Completado { get; set; }
+        public bool Completado { get; set; } = false;
         public List<EjercicioEntrenadoDto>? Ejercicios { get; set; } = new List<EjercicioEntrenadoDto>();
     }
 }

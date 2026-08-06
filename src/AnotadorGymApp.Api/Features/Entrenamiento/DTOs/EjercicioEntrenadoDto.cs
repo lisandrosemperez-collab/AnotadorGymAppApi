@@ -9,7 +9,7 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento.DTOs
         public int EjercicioId { get; set; }
         public int Orden { get; set; }
         public string? Notas { get; set; }
-        public bool Completado { get; set; }
+        public bool Completado { get; set; } = false;
         public List<SerieEntrenadaDto>? Series { get; set; } = new List<SerieEntrenadaDto>();
     }
 }
