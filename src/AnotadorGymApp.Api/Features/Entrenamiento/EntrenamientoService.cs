@@ -1,5 +1,6 @@
 ﻿using AnotadorGymApp.Api.Domain.Entities.Entrenamiento;
 using AnotadorGymApp.Api.Features.Entrenamiento.DTOs;
+using AnotadorGymAppApi.Domain.Entities.Ejercicio;
 using AnotadorGymAppApi.Features.Ejercicios.DTOs;
 using AnotadorGymAppApi.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +19,11 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             var ent = await _db.Entrenamientos
                 .Include(e => e.Ejercicios)
                     .ThenInclude(ee => ee.Series)
+                .Include(e => e.Ejercicios)
+                    .ThenInclude(ee => ee.Ejercicio)
+                .Include(e => e.RutinaDia)
+                    .ThenInclude(rd => rd.RutinaSemana)
+                        .ThenInclude(rs => rs.Rutina)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e => e.EntrenamientoId == entrenamientoId && e.UsuarioId == usuarioId, cancellationToken);
 
@@ -25,12 +31,16 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
 
             return MapToDto(ent);
         }
-
         public async Task<IEnumerable<EntrenamientoDto>> ObtenerPorUsuarioAsync(int usuarioId, CancellationToken cancellationToken)
         {
             var list = await _db.Entrenamientos
                 .Include(e => e.Ejercicios)
                     .ThenInclude(ee => ee.Series)
+                .Include(e => e.Ejercicios)
+                    .ThenInclude(ee => ee.Ejercicio)
+                .Include(e => e.RutinaDia)
+                    .ThenInclude(rd => rd.RutinaSemana)
+                        .ThenInclude(rs => rs.Rutina)
                 .AsNoTracking()
                 .Where(e => e.UsuarioId == usuarioId)
                 .OrderByDescending(e => e.Fecha)
@@ -38,7 +48,41 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
 
             return list.Select(MapToDto).ToList();
         }
-        
+        public async Task<EntrenamientoDto?> ObtenerEntrenamientoDelDiaAsync(int usuarioId, CancellationToken cancellationToken)
+        {
+            var today = DateTime.Today;
+
+            var entrenamiento = await _db.Entrenamientos
+                .Include(e => e.Ejercicios)
+                    .ThenInclude(ee => ee.Series)
+                .Include(e => e.Ejercicios)
+                    .ThenInclude(ee => ee.Ejercicio)
+                .Include(e => e.RutinaDia)
+                    .ThenInclude(rd => rd.RutinaSemana)
+                        .ThenInclude(rs => rs.Rutina)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.UsuarioId == usuarioId && e.Fecha.Date == today && e.Completado == false);
+
+            return entrenamiento is not null ? MapToDto(entrenamiento) : null;
+        }        
+        public async Task<EntrenamientoDto> CrearAsync(EntrenamientoDto dto, int usuarioId, CancellationToken cancellationToken)
+        {
+            var entidad = new AnotadorGymApp.Api.Domain.Entities.Entrenamiento.Entrenamiento
+            {
+                UsuarioId = usuarioId,
+                Fecha = DateTime.Now,
+                UltimaActualizacion = DateTime.Now,
+                RutinaDiaId = dto.RutinaDiaId,
+                Completado = false,
+                Notas = dto.Notas ?? string.Empty
+            };
+
+            _db.Entrenamientos.Add(entidad);
+
+            await _db.SaveChangesAsync(cancellationToken);
+
+            return MapToDto(entidad);
+        }
         public async Task<bool> BorrarAsync(int usuarioId, int entrenamientoId, CancellationToken cancellationToken)
         {
             var entrenamiento = await _db.Entrenamientos
@@ -50,50 +94,9 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             await _db.SaveChangesAsync(cancellationToken);
             return true;
         }
-
-        public async Task<EntrenamientoDto> CrearAsync(EntrenamientoDto dto, int usuarioId, CancellationToken cancellationToken)
-        {
-            var entidad = new Domain.Entities.Entrenamiento.Entrenamiento
-            {
-                UsuarioId = usuarioId,
-                Fecha = DateTime.Now,                
-                Completado = false,
-                Notas = dto.Notas ?? string.Empty
-            };
-
-            if (dto.Ejercicios != null)
-            {
-                foreach (var eeDto in dto.Ejercicios)
-                {
-                    var ee = new EjercicioEntrenado
-                    {
-                        EjercicioId = eeDto.EjercicioId,
-                        Orden = eeDto.Orden,
-                        Notas = eeDto.Notas
-                    };
-
-                    if (eeDto.Series != null)
-                    {
-                        foreach (var sDto in eeDto.Series)
-                        {
-                            ee.Series.Add(CrearSerie(sDto));
-                        }
-                    }
-
-                    entidad.Ejercicios.Add(ee);
-                }
-            }
-
-            _db.Entrenamientos.Add(entidad);
-            await _db.SaveChangesAsync(cancellationToken);
-
-            return MapToDto(entidad);
-        }
-
-
         public async Task<bool> SincronizarEntrenamiento(int usuarioId, EntrenamientoDto dto, CancellationToken cancellationToken)
         {
-            if (dto.EntrenamientoId == null) return false;
+            if (!dto.EntrenamientoId.HasValue) return false;
 
             var entrenamiento = await _db.Entrenamientos
                 .Include(e => e.Ejercicios)
@@ -109,33 +112,44 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             var ejerciciosDto = dto.Ejercicios ?? new List<EjercicioEntrenadoDto>();
 
             // 1) Eliminar ejercicios que no están en el DTO
-            var dtoEjIds = ejerciciosDto.Where(x => x.EjercicioEntrenadoId.HasValue).Select(x => x.EjercicioEntrenadoId!.Value).ToHashSet();
-            var toRemove = entrenamiento.Ejercicios.Where(dbEe => !dtoEjIds.Contains(dbEe.EjercicioEntrenadoId)).ToList();
+            var ejerciciosConId = ejerciciosDto
+                .Where(x => x.EjercicioEntrenadoId.HasValue)
+                .Select(x => x.EjercicioEntrenadoId!.Value)
+                .ToHashSet();
+
+            var ejerciciosAEliminar = entrenamiento.Ejercicios
+                .Where(dbEe => 
+                    !ejerciciosConId.Contains(dbEe.EjercicioEntrenadoId))
+                .ToList();
             
-            foreach (var rem in toRemove)
+            foreach (var rem in ejerciciosAEliminar)
             {
                 entrenamiento.Ejercicios.Remove(rem);
             }
 
             // 2) Actualizar existentes y crear nuevos
-            foreach (var ejercicioEntrenadoDto in ejerciciosDto)
+            foreach (var ejercicioEntrenado in ejerciciosDto)
             {
-                if (ejercicioEntrenadoDto.EjercicioEntrenadoId.HasValue)
+                if (ejercicioEntrenado.EjercicioId <= 0)
+                    return false;
+
+                if (ejercicioEntrenado.EjercicioEntrenadoId.HasValue)
                 {                    
                     var dbEjercicio = entrenamiento.Ejercicios
-                        .FirstOrDefault(e => e.EjercicioEntrenadoId == ejercicioEntrenadoDto.EjercicioEntrenadoId.Value);
+                        .FirstOrDefault(e => 
+                            e.EjercicioEntrenadoId == ejercicioEntrenado.EjercicioEntrenadoId.Value);
 
                     if (dbEjercicio is null)
                         return false;
 
-                    SincronizarEjercicioEntrenado(dbEjercicio, ejercicioEntrenadoDto);
+                    if (!SincronizarEjercicioEntrenado(dbEjercicio, ejercicioEntrenado))
+                    {
+                        return false;
+                    }
                 }
                 else
-                {
-                    if (ejercicioEntrenadoDto.EjercicioId == 0)
-                        return false;
-
-                    entrenamiento.Ejercicios.Add(CrearEjercicio(ejercicioEntrenadoDto));
+                {                   
+                    entrenamiento.Ejercicios.Add(CrearEjercicio(ejercicioEntrenado));
                 }                                               
             }
 
@@ -144,26 +158,16 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
         }
 
 
-        public async Task<EntrenamientoDto?> ObtenerEntrenamientoDelDiaAsync(int usuarioId, CancellationToken cancellationToken)
-        {
-            var today = DateTime.Today;
-
-            var entrenamiento = await _db.Entrenamientos
-                .Include(e => e.Ejercicios)
-                    .ThenInclude(ee => ee.Series)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.UsuarioId == usuarioId && e.Fecha.Date == today && e.Completado == false);
-
-            return entrenamiento is not null ? MapToDto(entrenamiento) : null;
-        }
-
         // Helpers
         private static EntrenamientoDto MapToDto(Domain.Entities.Entrenamiento.Entrenamiento ent)
         {
             return new EntrenamientoDto
             {
-                EntrenamientoId = ent.EntrenamientoId,                
+                EntrenamientoId = ent.EntrenamientoId,
                 Fecha = ent.Fecha,
+                UltimaActualizacion = ent.UltimaActualizacion,
+                RutinaDiaId = ent.RutinaDiaId,
+                RutinaId = ent.RutinaDia?.RutinaSemana?.Rutina?.RutinaId ?? 0,
                 DuracionSegundos = ent.DuracionSegundos,
                 Notas = ent.Notas,
                 Completado = ent.Completado,
@@ -171,6 +175,15 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 {
                     EjercicioEntrenadoId = ee.EjercicioEntrenadoId,
                     EjercicioId = ee.EjercicioId,
+                    Ejercicio = ee.Ejercicio == null
+                    ? null
+                    : new EjercicioSimpleDTO
+                    {
+                        EjercicioId = ee.Ejercicio.EjercicioId,
+                        Nombre = ee.Ejercicio.Nombre,
+                        Descripcion = ee.Ejercicio.Descripcion,
+                        UrlVideo = ee.Ejercicio.UrlVideo
+                    },
                     Orden = ee.Orden,
                     Notas = ee.Notas,
                     Completado = ee.Completado,
@@ -194,10 +207,11 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             dbEnt.Fecha = dto.Fecha;
             dbEnt.DuracionSegundos = dto.DuracionSegundos;
             dbEnt.Notas = dto.Notas;
-            dbEnt.Completado = dto.Completado;
+            dbEnt.Completado = dto.Completado;            
+            dbEnt.UltimaActualizacion = DateTime.Now;
         }
 
-        private static void SincronizarEjercicioEntrenado(EjercicioEntrenado dbEe, EjercicioEntrenadoDto eeDto)
+        private static bool SincronizarEjercicioEntrenado(EjercicioEntrenado dbEe, EjercicioEntrenadoDto eeDto)
         {            
             dbEe.EjercicioId = eeDto.EjercicioId;
             dbEe.Orden = eeDto.Orden;
@@ -206,42 +220,51 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
 
             // Sincronizar series
             var dtoSeries = eeDto.Series ?? new List<SerieEntrenadaDto>();
-            SincronizarSeries(dbEe, dtoSeries);
+
+            return SincronizarSeries(dbEe, dtoSeries);
         }
 
-        private static void SincronizarSeries(EjercicioEntrenado dbEe, List<SerieEntrenadaDto> seriesDto)
+        private static bool SincronizarSeries(EjercicioEntrenado dbEe, List<SerieEntrenadaDto> seriesDto)
         {
-            var dtoIds = seriesDto.Where(s => s.SerieEntrenadaId.HasValue).Select(s => s.SerieEntrenadaId!.Value).ToHashSet();
+            var dtoIds = seriesDto
+                .Where(s => s.SerieEntrenadaId.HasValue)
+                .Select(s => s.SerieEntrenadaId!.Value)
+                .ToHashSet();
 
             // eliminar series que no vienen en DTO
-            var toRemove = dbEe.Series.Where(s => !dtoIds.Contains(s.SerieEntrenadaId)).ToList();
-            foreach (var r in toRemove) dbEe.Series.Remove(r);
+            var seriesEliminar = dbEe.Series
+                .Where(s => 
+                    !dtoIds.Contains(s.SerieEntrenadaId))
+                .ToList();
+
+            foreach (var r in seriesEliminar) dbEe.Series.Remove(r);
 
             // actualizar/crear
 
-            foreach (var sDto in seriesDto)
+            foreach (var serieDto in seriesDto)
             {
-                if (sDto.SerieEntrenadaId.HasValue && sDto.SerieEntrenadaId.Value != 0)
+                if (serieDto.SerieEntrenadaId.HasValue &&
+                    serieDto.SerieEntrenadaId.Value != 0)
                 {
-                    var dbS = dbEe.Series.FirstOrDefault(s => s.SerieEntrenadaId == sDto.SerieEntrenadaId.Value);
-                    if (dbS == null)
+                    var serieDb = dbEe.Series.FirstOrDefault(s => s.SerieEntrenadaId == serieDto.SerieEntrenadaId.Value);
+                    if (serieDb == null)
                     {
-                        dbEe.Series.Add(CrearSerie(sDto));
+                        dbEe.Series.Add(CrearSerie(serieDto));
                     }
                     else
                     {
-                        dbS.NumeroSerie = sDto.NumeroSerie;
-                        dbS.Peso = sDto.Peso;
-                        dbS.Repeticiones = sDto.Repeticiones;
-                        dbS.Completada = sDto.Completada;
-                        dbS.FuePR = sDto.FuePR;
-                        dbS.RPE = sDto.RPE;
-                        dbS.DescansoSegundos = sDto.DescansoSegundos;
+                        serieDb.NumeroSerie = serieDto.NumeroSerie;
+                        serieDb.Peso = serieDto.Peso;
+                        serieDb.Repeticiones = serieDto.Repeticiones;
+                        serieDb.Completada = serieDto.Completada;
+                        serieDb.FuePR = serieDto.FuePR;
+                        serieDb.RPE = serieDto.RPE;
+                        serieDb.DescansoSegundos = serieDto.DescansoSegundos;
                     }
                 }
                 else
                 {
-                    dbEe.Series.Add(CrearSerie(sDto));
+                    dbEe.Series.Add(CrearSerie(serieDto));
                 }
             }
         }
@@ -279,5 +302,4 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             };
         }
     }
-
 }

@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using AnotadorGymAppApi.Domain.Entities.Rutina;
+using AnotadorGymAppApi.Features.Rutinas.DTOs;
+using System.ComponentModel.DataAnnotations;
 
 namespace AnotadorGymApp.Api.Features.Entrenamiento.DTOs
 {
@@ -8,6 +10,9 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento.DTOs
         [Required]
         public DateTime Fecha { get; set; }
         public DateTime UltimaActualizacion { get; set; }
+        public int RutinaDiaId { get; set; }
+        public RutinaDiaDto? RutinaDia { get; set; }
+        public int RutinaId { get; set; }
         public int? DuracionSegundos { get; set; }
         public string? Notas { get; set; }
         public bool Completado { get; set; } = false;

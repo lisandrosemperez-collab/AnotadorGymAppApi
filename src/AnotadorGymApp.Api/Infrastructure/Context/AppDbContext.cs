@@ -217,6 +217,11 @@ namespace AnotadorGymAppApi.Infrastructure.Context
                     .WithOne(ee => ee.Entrenamiento)
                     .HasForeignKey(ee => ee.EntrenamientoId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entrenamiento.HasOne(e => e.RutinaDia)
+                    .WithMany()
+                    .HasForeignKey(e => e.RutinaDiaId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<EjercicioEntrenado>(ejercicioEntrenado =>

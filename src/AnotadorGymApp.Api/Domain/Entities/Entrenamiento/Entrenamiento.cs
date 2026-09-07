@@ -1,4 +1,5 @@
-﻿using AnotadorGymAppApi.Domain.Entities.Usuario;
+﻿using AnotadorGymAppApi.Domain.Entities.Rutina;
+using AnotadorGymAppApi.Domain.Entities.Usuario;
 
 namespace AnotadorGymApp.Api.Domain.Entities.Entrenamiento
 {
@@ -8,6 +9,9 @@ namespace AnotadorGymApp.Api.Domain.Entities.Entrenamiento
 
         public int UsuarioId { get; set; }
         public Usuario Usuario { get; set; }
+
+        public int RutinaDiaId { get; set; }
+        public RutinaDia RutinaDia { get; set; }        
 
         public DateTime Fecha { get; set; }
         public DateTime UltimaActualizacion { get; set; }
