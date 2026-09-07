@@ -246,27 +246,26 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 if (serieDto.SerieEntrenadaId.HasValue &&
                     serieDto.SerieEntrenadaId.Value != 0)
                 {
-                    var serieDb = dbEe.Series.FirstOrDefault(s => s.SerieEntrenadaId == serieDto.SerieEntrenadaId.Value);
-                    if (serieDb == null)
-                    {
-                        dbEe.Series.Add(CrearSerie(serieDto));
-                    }
-                    else
-                    {
-                        serieDb.NumeroSerie = serieDto.NumeroSerie;
-                        serieDb.Peso = serieDto.Peso;
-                        serieDb.Repeticiones = serieDto.Repeticiones;
-                        serieDb.Completada = serieDto.Completada;
-                        serieDb.FuePR = serieDto.FuePR;
-                        serieDb.RPE = serieDto.RPE;
-                        serieDb.DescansoSegundos = serieDto.DescansoSegundos;
-                    }
+                    var serieDb = dbEe.Series
+                        .FirstOrDefault(s => s.SerieEntrenadaId == serieDto.SerieEntrenadaId.Value);
+                    
+                    if (serieDb == null) return false;
+                    
+                    serieDb.NumeroSerie = serieDto.NumeroSerie;
+                    serieDb.Peso = serieDto.Peso;
+                    serieDb.Repeticiones = serieDto.Repeticiones;
+                    serieDb.Completada = serieDto.Completada;
+                    serieDb.FuePR = serieDto.FuePR;
+                    serieDb.RPE = serieDto.RPE;
+                    serieDb.DescansoSegundos = serieDto.DescansoSegundos;                    
                 }
                 else
                 {
                     dbEe.Series.Add(CrearSerie(serieDto));
                 }
             }
+            
+            return true;
         }
 
         private static EjercicioEntrenado CrearEjercicio(EjercicioEntrenadoDto dto)
