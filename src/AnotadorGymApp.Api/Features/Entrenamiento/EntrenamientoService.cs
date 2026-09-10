@@ -96,64 +96,92 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
         }
         public async Task<bool> SincronizarEntrenamiento(int usuarioId, EntrenamientoDto dto, CancellationToken cancellationToken)
         {
-            if (!dto.EntrenamientoId.HasValue) return false;
+            if (!dto.EntrenamientoId.HasValue
+                && dto.EntrenamientoId != 0) return false;
 
             var entrenamiento = await _db.Entrenamientos
-                .Include(e => e.Ejercicios)
-                    .ThenInclude(ee => ee.Series)
-                .FirstOrDefaultAsync(e => e.EntrenamientoId == dto.EntrenamientoId && e.UsuarioId == usuarioId, cancellationToken);
+            .Include(e => e.Ejercicios)
+                .ThenInclude(ee => ee.Series)
+            .FirstOrDefaultAsync(
+                e => e.EntrenamientoId == dto.EntrenamientoId &&
+                        e.UsuarioId == usuarioId,
+                cancellationToken);
 
             if (entrenamiento == null) return false;
 
             // Actualizar propiedades de root
             SincronizarRootEntrenamiento(entrenamiento, dto);
 
-            // Sincronizar EjerciciosEntrenados
+            // Obtener ejercicios del DTO
             var ejerciciosDto = dto.Ejercicios ?? new List<EjercicioEntrenadoDto>();
 
             // 1) Eliminar ejercicios que no están en el DTO
+            var ejercicioIds = ejerciciosDto
+                .Select(e => e.EjercicioId)
+                .Distinct()
+                .ToList();
+
+            if (ejercicioIds.Any(id => id <= 0))
+                return false;
+
+            // Verificar que todos los ejercicios existan en la DB
+            var ejerciciosExistentes = await _db.Ejercicios
+                .Where(e => ejercicioIds.Contains(e.EjercicioId))
+                .Select(e => e.EjercicioId)
+                .ToListAsync(cancellationToken);
+
+            if (ejerciciosExistentes.Count != ejercicioIds.Count)
+                return false;
+
+            // IDs de los EjercicioEntrenado que siguen presentes en el DTO
             var ejerciciosConId = ejerciciosDto
-                .Where(x => x.EjercicioEntrenadoId.HasValue)
-                .Select(x => x.EjercicioEntrenadoId!.Value)
+                .Where(e =>
+                    e.EjercicioEntrenadoId.HasValue &&
+                    e.EjercicioEntrenadoId.Value != 0)
+                .Select(e => e.EjercicioEntrenadoId!.Value)
                 .ToHashSet();
 
+            // Eliminar ejercicios que ya no vienen en el DTO
             var ejerciciosAEliminar = entrenamiento.Ejercicios
-                .Where(dbEe => 
+                .Where(dbEe =>
                     !ejerciciosConId.Contains(dbEe.EjercicioEntrenadoId))
                 .ToList();
-            
+
             foreach (var rem in ejerciciosAEliminar)
             {
                 entrenamiento.Ejercicios.Remove(rem);
             }
 
             // 2) Actualizar existentes y crear nuevos
-            foreach (var ejercicioEntrenado in ejerciciosDto)
+            foreach (var ejercicioDto in ejerciciosDto)
             {
-                if (ejercicioEntrenado.EjercicioId <= 0)
-                    return false;
-
-                if (ejercicioEntrenado.EjercicioEntrenadoId.HasValue)
-                {                    
+                if (ejercicioDto.EjercicioEntrenadoId.HasValue &&
+            ejercicioDto.EjercicioEntrenadoId.Value != 0)
+                {
                     var dbEjercicio = entrenamiento.Ejercicios
-                        .FirstOrDefault(e => 
-                            e.EjercicioEntrenadoId == ejercicioEntrenado.EjercicioEntrenadoId.Value);
+                        .FirstOrDefault(e =>
+                            e.EjercicioEntrenadoId ==
+                            ejercicioDto.EjercicioEntrenadoId.Value);
 
                     if (dbEjercicio is null)
                         return false;
 
-                    if (!SincronizarEjercicioEntrenado(dbEjercicio, ejercicioEntrenado))
+                    if (!SincronizarEjercicioEntrenado(
+                            dbEjercicio,
+                            ejercicioDto))
                     {
                         return false;
                     }
                 }
                 else
-                {                   
-                    entrenamiento.Ejercicios.Add(CrearEjercicio(ejercicioEntrenado));
-                }                                               
+                {
+                    entrenamiento.Ejercicios.Add(
+                        CrearEjercicio(ejercicioDto));
+                }
             }
 
             await _db.SaveChangesAsync(cancellationToken);
+
             return true;
         }
 
