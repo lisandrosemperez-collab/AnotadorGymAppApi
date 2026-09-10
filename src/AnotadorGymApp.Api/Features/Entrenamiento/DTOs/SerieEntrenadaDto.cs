@@ -10,5 +10,7 @@
         public bool FuePR { get; set; }
         public int? RPE { get; set; }
         public int? DescansoSegundos { get; set; }
+        public SerieReferenciaDto? SerieReferencia { get; set; }
+
     }
 }

@@ -1,6 +1,7 @@
 ﻿using AnotadorGymApp.Api.Domain.Entities.Entrenamiento;
 using AnotadorGymApp.Api.Features.Entrenamiento.DTOs;
 using AnotadorGymAppApi.Domain.Entities.Ejercicio;
+using AnotadorGymAppApi.Domain.Entities.Rutina;
 using AnotadorGymAppApi.Features.Ejercicios.DTOs;
 using AnotadorGymAppApi.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
@@ -67,6 +68,21 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
         }        
         public async Task<EntrenamientoDto> CrearAsync(EntrenamientoDto dto, int usuarioId, CancellationToken cancellationToken)
         {
+            // 1. Buscar rutina del día
+            var rutinaDia = await _db.RutinaDias
+                .Include(rd => rd.Ejercicios)
+                    .ThenInclude(re => re.Series)
+                .FirstOrDefaultAsync(
+                    rd => rd.RutinaDiaId == dto.RutinaDiaId,
+                    cancellationToken);
+
+            if (rutinaDia is null)
+            {
+                throw new KeyNotFoundException(
+                    $"No se encontró el RutinaDia {dto.RutinaDiaId}.");
+            }
+
+            // 2. Crear entrenamiento
             var entidad = new AnotadorGymApp.Api.Domain.Entities.Entrenamiento.Entrenamiento
             {
                 UsuarioId = usuarioId,
@@ -77,12 +93,55 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 Notas = dto.Notas ?? string.Empty
             };
 
+            // 3. Guardar SOLO el entrenamiento
             _db.Entrenamientos.Add(entidad);
 
             await _db.SaveChangesAsync(cancellationToken);
 
-            return MapToDto(entidad);
-        }
+            // 4. Crear ejercicios entrenados EN MEMORIA
+            foreach (var rutinaEjercicio in rutinaDia.Ejercicios
+                .OrderBy(re => re.NumeroEjercicio))
+            {
+                var ejercicioEntrenado = new EjercicioEntrenado
+                {
+                    EjercicioId = rutinaEjercicio.EjercicioId,
+                    Orden = rutinaEjercicio.NumeroEjercicio,
+                    Notas = string.Empty,
+                    Completado = false
+                };
+
+                // 5. Crear series entrenadas EN MEMORIA
+                foreach (var rutinaSerie in rutinaEjercicio.Series
+                    .OrderBy(rs => rs.NumeroSerie))
+                {
+                    var serieEntrenada = new SerieEntrenada
+                    {
+                        NumeroSerie = rutinaSerie.NumeroSerie,
+
+                        // Estado inicial de la serie real
+                        Peso = 0,
+                        Repeticiones = 0,
+                        Completada = false,
+                        FuePR = false,
+                        RPE = null,
+                        DescansoSegundos = 0
+                    };
+
+                    ejercicioEntrenado.Series.Add(serieEntrenada);
+                }
+
+                entidad.Ejercicios.Add(ejercicioEntrenado);
+            }
+
+            // 6. Convertir a DTO
+            var resultado = MapToDto(entidad);
+
+            // 7. Agregar información de referencia
+            AgregarReferencias(resultado, rutinaDia);
+
+            return resultado;
+        }        
+
         public async Task<bool> BorrarAsync(int usuarioId, int entrenamientoId, CancellationToken cancellationToken)
         {
             var entrenamiento = await _db.Entrenamientos
@@ -96,8 +155,12 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
         }
         public async Task<bool> SincronizarEntrenamiento(int usuarioId, EntrenamientoDto dto, CancellationToken cancellationToken)
         {
-            if (!dto.EntrenamientoId.HasValue
-                && dto.EntrenamientoId != 0) return false;
+            // Validar ID del entrenamiento
+            if (!dto.EntrenamientoId.HasValue ||
+                dto.EntrenamientoId.Value <= 0)
+            {
+                return false;
+            }
 
             var entrenamiento = await _db.Entrenamientos
             .Include(e => e.Ejercicios)
@@ -109,13 +172,25 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
 
             if (entrenamiento == null) return false;
 
-            // Actualizar propiedades de root
+            // ---------------------------------------------------------
+            // 1. Sincronizar datos generales del entrenamiento
+            // ---------------------------------------------------------
+            
             SincronizarRootEntrenamiento(entrenamiento, dto);
 
-            // Obtener ejercicios del DTO
-            var ejerciciosDto = dto.Ejercicios ?? new List<EjercicioEntrenadoDto>();
+            // ---------------------------------------------------------
+            // 2. Filtrar ejercicios y series no ejecutados
+            // ---------------------------------------------------------
 
-            // 1) Eliminar ejercicios que no están en el DTO
+            var ejerciciosDto = (dto.Ejercicios ?? new List<EjercicioEntrenadoDto>())
+                .Where(e =>
+                    e.Series != null &&
+                    e.Series.Any(s => s.Repeticiones > 0))
+                .ToList();           
+
+            // ---------------------------------------------------------
+            // 3. Validar los ejercicios que realmente vamos a guardar
+            // ---------------------------------------------------------
             var ejercicioIds = ejerciciosDto
                 .Select(e => e.EjercicioId)
                 .Distinct()
@@ -124,7 +199,6 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             if (ejercicioIds.Any(id => id <= 0))
                 return false;
 
-            // Verificar que todos los ejercicios existan en la DB
             var ejerciciosExistentes = await _db.Ejercicios
                 .Where(e => ejercicioIds.Contains(e.EjercicioId))
                 .Select(e => e.EjercicioId)
@@ -133,7 +207,9 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             if (ejerciciosExistentes.Count != ejercicioIds.Count)
                 return false;
 
-            // IDs de los EjercicioEntrenado que siguen presentes en el DTO
+            // ---------------------------------------------------------
+            // 4. Obtener IDs de los ejercicios que siguen existiendo
+            // ---------------------------------------------------------
             var ejerciciosConId = ejerciciosDto
                 .Where(e =>
                     e.EjercicioEntrenadoId.HasValue &&
@@ -141,29 +217,37 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 .Select(e => e.EjercicioEntrenadoId!.Value)
                 .ToHashSet();
 
-            // Eliminar ejercicios que ya no vienen en el DTO
+            // ---------------------------------------------------------
+            // 5. Eliminar ejercicios que ya no tienen series ejecutadas
+            // ---------------------------------------------------------
             var ejerciciosAEliminar = entrenamiento.Ejercicios
                 .Where(dbEe =>
                     !ejerciciosConId.Contains(dbEe.EjercicioEntrenadoId))
                 .ToList();
 
-            foreach (var rem in ejerciciosAEliminar)
+            foreach (var ejercicio in ejerciciosAEliminar)
             {
-                entrenamiento.Ejercicios.Remove(rem);
+                entrenamiento.Ejercicios.Remove(ejercicio);
             }
 
-            // 2) Actualizar existentes y crear nuevos
+            // ---------------------------------------------------------
+            // 6. Actualizar existentes / crear nuevos
+            // ---------------------------------------------------------
             foreach (var ejercicioDto in ejerciciosDto)
             {
                 if (ejercicioDto.EjercicioEntrenadoId.HasValue &&
-            ejercicioDto.EjercicioEntrenadoId.Value != 0)
+                    ejercicioDto.EjercicioEntrenadoId.Value != 0)
                 {
+                    // ---------------------------------------------
+                    // Ejercicio existente
+                    // ---------------------------------------------
+
                     var dbEjercicio = entrenamiento.Ejercicios
                         .FirstOrDefault(e =>
                             e.EjercicioEntrenadoId ==
                             ejercicioDto.EjercicioEntrenadoId.Value);
 
-                    if (dbEjercicio is null)
+                    if (dbEjercicio == null)
                         return false;
 
                     if (!SincronizarEjercicioEntrenado(
@@ -175,10 +259,18 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 }
                 else
                 {
+                    // ---------------------------------------------
+                    // Ejercicio nuevo
+                    // ---------------------------------------------
+
                     entrenamiento.Ejercicios.Add(
                         CrearEjercicio(ejercicioDto));
                 }
             }
+
+            // ---------------------------------------------------------
+            // 7. Guardar cambios
+            // ---------------------------------------------------------
 
             await _db.SaveChangesAsync(cancellationToken);
 
@@ -229,7 +321,42 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 }).OrderBy(ee => ee.Orden).ToList()
             };
         }
-       
+
+        private static void AgregarReferencias(EntrenamientoDto dto, RutinaDia rutinaDia)
+        {
+            if (dto.Ejercicios == null)
+                return;
+
+            foreach (var ejercicioDto in dto.Ejercicios)
+            {
+                var rutinaEjercicio = rutinaDia.Ejercicios
+                    .FirstOrDefault(re =>
+                        re.EjercicioId == ejercicioDto.EjercicioId);
+
+                if (rutinaEjercicio == null || ejercicioDto.Series == null)
+                    continue;
+
+                foreach (var serieDto in ejercicioDto.Series)
+                {
+                    var rutinaSerie = rutinaEjercicio.Series
+                        .FirstOrDefault(rs =>
+                            rs.NumeroSerie == serieDto.NumeroSerie);
+
+                    if (rutinaSerie == null)
+                        continue;
+
+                    serieDto.SerieReferencia = new SerieReferenciaDto
+                    {
+                        Porcentaje1RM = rutinaSerie.Porcentaje1RM,
+                        Repeticiones = rutinaSerie.Repeticiones,
+                        DescansoSegundos = rutinaSerie.Descanso.HasValue
+                            ? (int)rutinaSerie.Descanso.Value.TotalSeconds
+                            : null
+                    };
+                }
+            }
+        }
+
         private static void SincronizarRootEntrenamiento(Domain.Entities.Entrenamiento.Entrenamiento dbEnt, EntrenamientoDto dto)
         {
             dbEnt.Fecha = dto.Fecha;
@@ -240,42 +367,50 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
         }
 
         private static bool SincronizarEjercicioEntrenado(EjercicioEntrenado dbEe, EjercicioEntrenadoDto eeDto)
-        {            
+        {
+
             dbEe.EjercicioId = eeDto.EjercicioId;
             dbEe.Orden = eeDto.Orden;
             dbEe.Notas = eeDto.Notas;
             dbEe.Completado = eeDto.Completado;
 
-            // Sincronizar series
-            var dtoSeries = eeDto.Series ?? new List<SerieEntrenadaDto>();
+            var dtoSeries = eeDto.Series ??
+                new List<SerieEntrenadaDto>();
 
             return SincronizarSeries(dbEe, dtoSeries);
         }
 
         private static bool SincronizarSeries(EjercicioEntrenado dbEe, List<SerieEntrenadaDto> seriesDto)
         {
-            var dtoIds = seriesDto
-                .Where(s => s.SerieEntrenadaId.HasValue)
+
+            var seriesValidas = seriesDto
+               .Where(s => s.Repeticiones > 0)
+               .ToList();
+
+            var dtoIds = seriesValidas
+                .Where(s =>
+                    s.SerieEntrenadaId.HasValue &&
+                    s.SerieEntrenadaId.Value != 0)
                 .Select(s => s.SerieEntrenadaId!.Value)
                 .ToHashSet();
 
-            // eliminar series que no vienen en DTO
+            // Eliminar series que ya no están en el DTO válido            
+
             var seriesEliminar = dbEe.Series
-                .Where(s => 
-                    !dtoIds.Contains(s.SerieEntrenadaId))
+                .Where(s => !dtoIds.Contains(s.SerieEntrenadaId))
                 .ToList();
 
-            foreach (var r in seriesEliminar) dbEe.Series.Remove(r);
+            foreach (var serie in seriesEliminar) dbEe.Series.Remove(serie);
 
-            // actualizar/crear
-
-            foreach (var serieDto in seriesDto)
+            // Actualizar / crear solamente series válidas
+            foreach (var serieDto in seriesValidas)
             {
                 if (serieDto.SerieEntrenadaId.HasValue &&
                     serieDto.SerieEntrenadaId.Value != 0)
                 {
                     var serieDb = dbEe.Series
-                        .FirstOrDefault(s => s.SerieEntrenadaId == serieDto.SerieEntrenadaId.Value);
+                        .FirstOrDefault(s =>
+                        s.SerieEntrenadaId == serieDto.SerieEntrenadaId.Value);
                     
                     if (serieDb == null) return false;
                     
