@@ -72,6 +72,10 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             var rutinaDia = await _db.RutinaDias
                 .Include(rd => rd.Ejercicios)
                     .ThenInclude(re => re.Series)
+                .Include(rd => rd.RutinaSemana)
+                    .ThenInclude(rs => rs.Rutina)
+                .Include(rd => rd.Ejercicios)
+                    .ThenInclude(re => re.Ejercicio)
                 .FirstOrDefaultAsync(
                     rd => rd.RutinaDiaId == dto.RutinaDiaId,
                     cancellationToken);
@@ -89,6 +93,7 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 Fecha = DateTime.Now,
                 UltimaActualizacion = DateTime.Now,
                 RutinaDiaId = dto.RutinaDiaId,
+                RutinaDia = rutinaDia,                
                 Completado = false,
                 Notas = dto.Notas ?? string.Empty
             };
@@ -135,6 +140,12 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
 
             // 6. Convertir a DTO
             var resultado = MapToDto(entidad);
+
+            if (resultado.RutinaId <= 0)
+            {
+                throw new InvalidOperationException(
+                    "No se pudo determinar la rutina del entrenamiento.");
+            }
 
             // 7. Agregar información de referencia
             AgregarReferencias(resultado, rutinaDia);
@@ -287,7 +298,10 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 Fecha = ent.Fecha,
                 UltimaActualizacion = ent.UltimaActualizacion,
                 RutinaDiaId = ent.RutinaDiaId,
-                RutinaId = ent.RutinaDia?.RutinaSemana?.Rutina?.RutinaId ?? 0,
+                RutinaId = ent.RutinaDia?
+                    .RutinaSemana?
+                    .Rutina?
+                    .RutinaId ?? 0,
                 DuracionSegundos = ent.DuracionSegundos,
                 Notas = ent.Notas,
                 Completado = ent.Completado,
