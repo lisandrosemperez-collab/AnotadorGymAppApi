@@ -47,6 +47,24 @@ namespace AnotadorGymAppApi.Features.Entrenamiento
             return Ok(ent);
         }
 
+
+        /// <summary>
+        /// Valida si un entrenamiento está activo.
+        /// </summary>
+        [HttpGet("activo/{id}")]
+        public async Task<ActionResult> ValidarEntrenamientoActivo( int id, CancellationToken cancellationToken)
+        {
+            var existe = await _service.ValidarEntrenamientoActivo(id, UsuarioId, cancellationToken);
+
+            if (!existe)
+                return NotFound();
+
+            return Ok(new
+            {
+                entrenamientoId = id
+            });
+        }
+
         /// <summary>
         /// Obtiene todos los entrenamientos de un usuario.        
         /// </summary>

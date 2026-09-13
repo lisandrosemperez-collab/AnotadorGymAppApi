@@ -2,6 +2,7 @@
 using AnotadorGymApp.Api.Features.Entrenamiento.DTOs;
 using AnotadorGymAppApi.Domain.Entities.Ejercicio;
 using AnotadorGymAppApi.Domain.Entities.Rutina;
+using AnotadorGymAppApi.Domain.Entities.Usuario;
 using AnotadorGymAppApi.Features.Ejercicios.DTOs;
 using AnotadorGymAppApi.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
@@ -287,6 +288,18 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
 
             return true;
         }
+        public async Task<bool> ValidarEntrenamientoActivo(int id, int usuarioId, CancellationToken cancellationToken)
+        {
+            var existe = await _db.Entrenamientos
+                .AsNoTracking()
+                .AnyAsync(
+                    e => e.EntrenamientoId == id &&
+                         e.UsuarioId == usuarioId &&
+                         !e.Completado,
+                    cancellationToken);
+
+            return existe;
+        }
 
 
         // Helpers
@@ -477,5 +490,6 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 DescansoSegundos = dto.DescansoSegundos
             };
         }
+
     }
 }
