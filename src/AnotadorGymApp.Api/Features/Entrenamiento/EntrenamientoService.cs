@@ -111,6 +111,7 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 var ejercicioEntrenado = new EjercicioEntrenado
                 {
                     EjercicioId = rutinaEjercicio.EjercicioId,
+                    Ejercicio = rutinaEjercicio.Ejercicio,
                     Orden = rutinaEjercicio.NumeroEjercicio,
                     Notas = string.Empty,
                     Completado = false
