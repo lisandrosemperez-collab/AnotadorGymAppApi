@@ -50,6 +50,11 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
 
             return list.Select(MapToDto).ToList();
         }
+
+        // Obtiene el entrenamiento activo del usuario correspondiente al día actual.
+        // Recupera desde la base de datos únicamente los ejercicios y series que
+        // ya fueron persistidos y luego reconstruye en memoria los ejercicios y
+        // series planificados que todavía no fueron ejecutados, devolviendo un DTO completo.
         public async Task<EntrenamientoDto?> ObtenerEntrenamientoDelDiaAsync(int usuarioId, CancellationToken cancellationToken)
         {
             var today = DateTime.Today;
@@ -62,11 +67,41 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 .Include(e => e.RutinaDia)
                     .ThenInclude(rd => rd.RutinaSemana)
                         .ThenInclude(rs => rs.Rutina)
+                .Include(e => e.RutinaDia)
+                    .ThenInclude(rd => rd.Ejercicios)
+                        .ThenInclude(re => re.Series)
+                .Include(e => e.RutinaDia)
+                    .ThenInclude(rd => rd.Ejercicios)
+                        .ThenInclude(re => re.Ejercicio)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.UsuarioId == usuarioId && e.Fecha.Date == today && e.Completado == false);
+                .FirstOrDefaultAsync(
+            e =>
+                e.UsuarioId == usuarioId &&
+                e.Fecha.Date == today &&
+                e.Completado == false,
+            cancellationToken);
 
-            return entrenamiento is not null ? MapToDto(entrenamiento) : null;
-        }        
+            if (entrenamiento is null)
+                return null;
+
+            var resultado = MapToDto(entrenamiento);
+
+            if (entrenamiento.RutinaDia is null)
+                return resultado;
+
+            // Reconstruimos el DTO completo:
+            // ejercicios persistidos + ejercicios virtuales pendientes.
+            ReconstruirEjerciciosDesdeRutina(
+                resultado,
+                entrenamiento.RutinaDia);
+
+            return resultado;
+        }
+
+        // Crea un nuevo entrenamiento para el día seleccionado.
+        // Persiste únicamente la entidad Entrenamiento en la base de datos.
+        // Los ejercicios y series planificados se construyen únicamente en memoria
+        // y se incluyen en el DTO de respuesta, sin persistirlos hasta que sean ejecutados.
         public async Task<EntrenamientoDto> CrearAsync(EntrenamientoDto dto, int usuarioId, CancellationToken cancellationToken)
         {
             // 1. Buscar rutina del día
@@ -105,40 +140,7 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             await _db.SaveChangesAsync(cancellationToken);
 
             // 4. Crear ejercicios entrenados EN MEMORIA
-            foreach (var rutinaEjercicio in rutinaDia.Ejercicios
-                .OrderBy(re => re.NumeroEjercicio))
-            {
-                var ejercicioEntrenado = new EjercicioEntrenado
-                {
-                    EjercicioId = rutinaEjercicio.EjercicioId,
-                    Ejercicio = rutinaEjercicio.Ejercicio,
-                    Orden = rutinaEjercicio.NumeroEjercicio,
-                    Notas = string.Empty,
-                    Completado = false
-                };
-
-                // 5. Crear series entrenadas EN MEMORIA
-                foreach (var rutinaSerie in rutinaEjercicio.Series
-                    .OrderBy(rs => rs.NumeroSerie))
-                {
-                    var serieEntrenada = new SerieEntrenada
-                    {
-                        NumeroSerie = rutinaSerie.NumeroSerie,
-
-                        // Estado inicial de la serie real
-                        Peso = 0,
-                        Repeticiones = 0,
-                        Completada = false,
-                        FuePR = false,
-                        RPE = null,
-                        DescansoSegundos = 0
-                    };
-
-                    ejercicioEntrenado.Series.Add(serieEntrenada);
-                }
-
-                entidad.Ejercicios.Add(ejercicioEntrenado);
-            }
+            AgregarEjerciciosVirtuales(entidad, rutinaDia);
 
             // 6. Convertir a DTO
             var resultado = MapToDto(entidad);
@@ -150,7 +152,7 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             }
 
             // 7. Agregar información de referencia
-            AgregarReferencias(resultado, rutinaDia);
+            AgregarReferenciasASeries(resultado, rutinaDia);
 
             return resultado;
         }        
@@ -350,22 +352,35 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             };
         }
 
-        private static void AgregarReferencias(EntrenamientoDto dto, RutinaDia rutinaDia)
+
+        // Completa las series del DTO con la información definida en la rutina,
+        // como porcentaje de 1RM, repeticiones objetivo y tiempo de descanso.
+        // Relaciona cada ejercicio mediante su EjercicioId y su posición (Orden)
+        // y cada serie mediante su NumeroSerie.
+        private static void AgregarReferenciasASeries(EntrenamientoDto dto, RutinaDia rutinaDia)
         {
+            // Agrega a cada serie del DTO la información de referencia
+            // correspondiente a la serie original de la rutina.
             if (dto.Ejercicios == null)
                 return;
 
             foreach (var ejercicioDto in dto.Ejercicios)
             {
+                // Buscamos el ejercicio de la rutina que corresponde
+                // al ejercicio entrenado, utilizando tanto el EjercicioId
+                // como su posición dentro de la rutina.
                 var rutinaEjercicio = rutinaDia.Ejercicios
                     .FirstOrDefault(re =>
-                        re.EjercicioId == ejercicioDto.EjercicioId);
+                        re.EjercicioId == ejercicioDto.EjercicioId &&
+                        re.NumeroEjercicio == ejercicioDto.Orden);
 
                 if (rutinaEjercicio == null || ejercicioDto.Series == null)
                     continue;
 
                 foreach (var serieDto in ejercicioDto.Series)
                 {
+                    // Buscamos la serie correspondiente dentro del ejercicio
+                    // utilizando su número de serie.
                     var rutinaSerie = rutinaEjercicio.Series
                         .FirstOrDefault(rs =>
                             rs.NumeroSerie == serieDto.NumeroSerie);
@@ -373,6 +388,9 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                     if (rutinaSerie == null)
                         continue;
 
+                    // Copiamos al DTO los valores definidos originalmente
+                    // en la rutina para que el frontend pueda utilizarlos
+                    // como referencia durante el entrenamiento.
                     serieDto.SerieReferencia = new SerieReferenciaDto
                     {
                         Porcentaje1RM = rutinaSerie.Porcentaje1RM,
@@ -383,6 +401,215 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                     };
                 }
             }
+        }
+        
+        
+        // Completa el DTO del entrenamiento utilizando la rutina como fuente de referencia.
+        // Conserva los ejercicios y series que ya fueron persistidos y agrega virtualmente
+        // aquellos que todavía no fueron ejecutados.
+        // De esta forma, el DTO siempre representa el entrenamiento completo sin crear
+        // registros pendientes en la base de datos.
+        private static void ReconstruirEjerciciosDesdeRutina(
+            EntrenamientoDto dto,
+            RutinaDia rutinaDia)
+        {
+            dto.Ejercicios ??= new List<EjercicioEntrenadoDto>();
+
+            foreach (var rutinaEjercicio in rutinaDia.Ejercicios
+                .OrderBy(re => re.NumeroEjercicio))
+            {
+                // Buscar si este ejercicio ya fue ejecutado
+                // y por lo tanto existe en BD.
+                var ejercicioPersistido = dto.Ejercicios
+                .FirstOrDefault(e =>
+                    e.EjercicioId == rutinaEjercicio.EjercicioId &&
+                    e.Orden == rutinaEjercicio.NumeroEjercicio);
+
+                // =========================================================
+                // EJERCICIO NO EJECUTADO
+                // =========================================================
+
+                if (ejercicioPersistido is null)
+                {
+                    var ejercicioVirtual =
+                        CrearEjercicioDtoVirtual(rutinaEjercicio);
+
+                    dto.Ejercicios.Add(ejercicioVirtual);
+
+                    continue;
+                }
+
+                // =========================================================
+                // EJERCICIO YA EJECUTADO
+                // =========================================================
+
+                // El ejercicio ya existe en BD.
+                // Ahora completamos solamente las series
+                // que todavía no fueron ejecutadas.
+                ejercicioPersistido.Series ??=
+                    new List<SerieEntrenadaDto>();
+
+                foreach (var rutinaSerie in rutinaEjercicio.Series
+                    .OrderBy(rs => rs.NumeroSerie))
+                {
+                    var seriePersistida = ejercicioPersistido.Series
+                        .FirstOrDefault(s =>
+                            s.NumeroSerie == rutinaSerie.NumeroSerie);
+
+                    if (seriePersistida is null)
+                    {
+                        ejercicioPersistido.Series.Add(
+                            CrearSerieDtoVirtual(rutinaSerie));
+                    }
+                }
+
+                // Ordenar nuevamente después de agregar
+                // las series virtuales.
+                ejercicioPersistido.Series =
+                    ejercicioPersistido.Series
+                        .OrderBy(s => s.NumeroSerie)
+                        .ToList();
+            }
+
+            // Orden final de los ejercicios.
+            dto.Ejercicios =
+                dto.Ejercicios
+                    .OrderBy(e => e.Orden)
+                    .ToList();
+
+            // Agregar las referencias de la rutina
+            // también a los elementos persistidos.
+            AgregarReferenciasASeries(dto, rutinaDia);
+        }
+
+
+        // Construye en memoria los ejercicios y series planificados de una rutina,
+        // sin persistirlos en la base de datos.
+        // Se utiliza para que el DTO inicial del entrenamiento contenga toda la
+        // estructura planificada, aunque todavía no existan registros ejecutados.
+        private static void AgregarEjerciciosVirtuales(
+            Domain.Entities.Entrenamiento.Entrenamiento entrenamiento,
+            RutinaDia rutinaDia)
+        {
+            foreach (var rutinaEjercicio in rutinaDia.Ejercicios
+                .OrderBy(re => re.NumeroEjercicio))
+            {
+                var ejercicioEntrenado = new EjercicioEntrenado
+                {
+                    EjercicioId = rutinaEjercicio.EjercicioId,
+                    Ejercicio = rutinaEjercicio.Ejercicio,
+                    Orden = rutinaEjercicio.NumeroEjercicio,
+                    Notas = string.Empty,
+                    Completado = false
+                };
+
+                foreach (var rutinaSerie in rutinaEjercicio.Series
+                    .OrderBy(rs => rs.NumeroSerie))
+                {
+                    var serieEntrenada = new SerieEntrenada
+                    {
+                        NumeroSerie = rutinaSerie.NumeroSerie,
+                        Peso = 0,
+                        Repeticiones = 0,
+                        Completada = false,
+                        FuePR = false,
+                        RPE = null,
+                        DescansoSegundos = 0
+                    };
+
+                    ejercicioEntrenado.Series.Add(serieEntrenada);
+                }
+
+                entrenamiento.Ejercicios.Add(ejercicioEntrenado);
+            }
+        }
+
+
+        // Crea la representación DTO de un ejercicio planificado que todavía no
+        // fue ejecutado ni persistido.
+        // Utiliza el EjercicioId y la información de la rutina, asignando Id = 0
+        // para indicar que se trata de un elemento virtual.
+        private static EjercicioEntrenadoDto CrearEjercicioDtoVirtual(
+            RutinaEjercicio rutinaEjercicio)
+        {
+            return new EjercicioEntrenadoDto
+            {
+                // 0 = todavía no existe en BD
+                EjercicioEntrenadoId = 0,
+
+                EjercicioId = rutinaEjercicio.EjercicioId,
+
+                Ejercicio = rutinaEjercicio.Ejercicio == null
+                    ? null
+                    : new EjercicioSimpleDTO
+                    {
+                        EjercicioId =
+                            rutinaEjercicio.Ejercicio.EjercicioId,
+
+                        Nombre =
+                            rutinaEjercicio.Ejercicio.Nombre,
+
+                        Descripcion =
+                            rutinaEjercicio.Ejercicio.Descripcion,
+
+                        UrlVideo =
+                            rutinaEjercicio.Ejercicio.UrlVideo
+                    },
+
+                Orden = rutinaEjercicio.NumeroEjercicio,
+
+                Notas = string.Empty,
+
+                Completado = false,
+
+                Series = rutinaEjercicio.Series
+                    .OrderBy(rs => rs.NumeroSerie)
+                    .Select(CrearSerieDtoVirtual)
+                    .ToList()
+            };
+        }
+
+        
+        // Crea la representación DTO de una serie planificada que todavía no fue
+        // ejecutada ni persistida.
+        // Inicializa sus valores de ejecución en cero y mantiene el número de serie
+        // para poder asociarla posteriormente con la serie correspondiente de la rutina.
+        private static SerieEntrenadaDto CrearSerieDtoVirtual(
+            RutinaSerie rutinaSerie)
+        {
+            return new SerieEntrenadaDto
+            {
+                // 0 = todavía no existe en BD
+                SerieEntrenadaId = 0,
+
+                NumeroSerie = rutinaSerie.NumeroSerie,
+
+                Peso = 0,
+
+                Repeticiones = 0,
+
+                Completada = false,
+
+                FuePR = false,
+
+                RPE = null,
+
+                DescansoSegundos = 0,
+
+                SerieReferencia = new SerieReferenciaDto
+                {
+                    Porcentaje1RM =
+                        rutinaSerie.Porcentaje1RM,
+
+                    Repeticiones =
+                        rutinaSerie.Repeticiones,
+
+                    DescansoSegundos =
+                        rutinaSerie.Descanso.HasValue
+                            ? (int)rutinaSerie.Descanso.Value.TotalSeconds
+                            : null
+                }
+            };
         }
 
         private static void SincronizarRootEntrenamiento(Domain.Entities.Entrenamiento.Entrenamiento dbEnt, EntrenamientoDto dto)
