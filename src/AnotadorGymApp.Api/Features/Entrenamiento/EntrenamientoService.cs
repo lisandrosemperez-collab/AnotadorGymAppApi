@@ -77,7 +77,6 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 .FirstOrDefaultAsync(
             e =>
                 e.UsuarioId == usuarioId &&
-                e.Fecha.Date == today &&
                 e.Completado == false,
             cancellationToken);
 
