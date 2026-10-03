@@ -83,8 +83,8 @@ namespace AnotadorGymAppApi.Features.Entrenamiento
         /// <summary>
         /// Obtiene el entrenamiento del día de hoy (si existe) para el usuario logueado.
         /// </summary>        
-        [HttpGet("entrenamiento-del-dia")]
-        public async Task<ActionResult<EntrenamientoDto>> ObtenerEntrenamientoDelDia(CancellationToken cancellationToken)
+        [HttpGet("entrenamiento-activo")]
+        public async Task<ActionResult<EntrenamientoDto>> ObtenerEntrenamientoActivo(CancellationToken cancellationToken)
         {
             var ent = await _service.ObtenerEntrenamientoDelDiaAsync(UsuarioId, cancellationToken);
             if (ent is null) return NotFound();
