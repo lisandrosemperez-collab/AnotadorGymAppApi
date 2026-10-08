@@ -98,7 +98,8 @@ namespace AnotadorGymAppApi.Features.Entrenamiento
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Sincronizar(int id, [FromBody] EntrenamientoDto dto, CancellationToken cancellationToken)
         {            
-            var ok = await _service.SincronizarEntrenamiento(id, dto , cancellationToken);
+            
+            var ok = await _service.SincronizarEntrenamiento(UsuarioId, dto , cancellationToken);
 
             if (!ok) return NotFound();
             return NoContent();
