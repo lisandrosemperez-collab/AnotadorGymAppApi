@@ -195,12 +195,23 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
             // ---------------------------------------------------------
             // 2. Filtrar ejercicios y series no ejecutados
             // ---------------------------------------------------------
-
             var ejerciciosDto = (dto.Ejercicios ?? new List<EjercicioEntrenadoDto>())
                 .Where(e =>
                     e.Series != null &&
                     e.Series.Any(s => s.Repeticiones > 0))
-                .ToList();           
+                .Select(e => new EjercicioEntrenadoDto
+                {
+                    // Copiar los datos del ejercicio
+                    EjercicioEntrenadoId = e.EjercicioEntrenadoId,
+                    EjercicioId = e.EjercicioId,
+                    Orden = e.Orden,
+
+                    // Conservar solamente las series ejecutadas
+                    Series = e.Series!
+                        .Where(s => s.Repeticiones > 0)
+                        .ToList()
+                })
+                .ToList();
 
             // ---------------------------------------------------------
             // 3. Validar los ejercicios que realmente vamos a guardar
@@ -694,13 +705,15 @@ namespace AnotadorGymApp.Api.Features.Entrenamiento
                 Notas = dto.Notas,
                 Completado = false
             };
+
             if (dto.Series != null)
             {
-                foreach (var sDto in dto.Series)
+                foreach (var sDto in dto.Series.Where(s => s.Repeticiones > 0))
                 {
                     ee.Series.Add(CrearSerie(sDto));
                 }
             }
+
             return ee;
         }
         
